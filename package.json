@@ -2,8 +2,9 @@
   "name": "shiny-server-js",
   "version": "1.0.0",
   "description": "Browser library for connecting to Shiny Server and Shiny Server Pro",
-  "main": "main.js",
+  "main": "dist/shiny-server.min.js",
   "scripts": {
+    "prepublish": "make",
     "test": "make test"
   },
   "author": "RStudio <node@rstudio.com>",

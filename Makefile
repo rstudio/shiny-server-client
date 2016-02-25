@@ -20,6 +20,6 @@ test:
 		$(TESTS)
 
 clean:
-	rm dist/shiny-server.js dist/shiny-server.min.js
+	rm -f dist/shiny-server.js dist/shiny-server.min.js
 
 .PHONY: test clean all build
