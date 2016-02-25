@@ -1,0 +1,26 @@
+{
+  "name": "shiny-server-js",
+  "version": "1.0.0",
+  "description": "Browser library for connecting to Shiny Server and Shiny Server Pro",
+  "main": "main.js",
+  "scripts": {
+    "test": "make test"
+  },
+  "author": "RStudio <node@rstudio.com>",
+  "license": "AGPL-3",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rstudio/shiny-server-js"
+  },
+  "dependencies": {
+    "pinkyswear": "~2.2",
+    "inherits": "~2.0"
+  },
+  "devDependencies": {
+    "browserify": "~13.0",
+    "mocha": "~2.4",
+    "chai": "~3.5",
+    "sinon": "~1.17",
+    "uglify": "~0.1"
+  }
+}
