@@ -1,6 +1,8 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-module.exports = function(msg) {
-  if (typeof(console) !== "undefined" && !module.exports.suppress) {
+"use strict";
+
+module.exports = function (msg) {
+  if (typeof console !== "undefined" && !module.exports.suppress) {
     console.log(new Date() + " [DBG]: " + msg);
   }
 };
@@ -8,6 +10,8 @@ module.exports = function(msg) {
 module.exports.suppress = false;
 
 },{}],2:[function(require,module,exports){
+"use strict";
+
 module.exports = BaseConnectionDecorator;
 
 function BaseConnectionDecorator(conn) {
@@ -18,30 +22,30 @@ function BaseConnectionDecorator(conn) {
   conn.onclose = this._handleClose.bind(this);
 }
 
-BaseConnectionDecorator.prototype.send = function(data) {
+BaseConnectionDecorator.prototype.send = function (data) {
   this._conn.send(data);
 };
 
-BaseConnectionDecorator.prototype.close = function() {
+BaseConnectionDecorator.prototype.close = function () {
   return this._conn.close();
 };
 
-BaseConnectionDecorator.prototype._handleOpen = function() {
+BaseConnectionDecorator.prototype._handleOpen = function () {
   if (this.onopen) {
     this.onopen.apply(this, arguments);
   }
 };
-BaseConnectionDecorator.prototype._handleMessage = function() {
+BaseConnectionDecorator.prototype._handleMessage = function () {
   if (this.onmessage) {
     this.onmessage.apply(this, arguments);
   }
 };
-BaseConnectionDecorator.prototype._handleError = function() {
+BaseConnectionDecorator.prototype._handleError = function () {
   if (this.onerror) {
     this.onerror.apply(this, arguments);
   }
 };
-BaseConnectionDecorator.prototype._handleClose = function() {
+BaseConnectionDecorator.prototype._handleClose = function () {
   if (this.onclose) {
     this.onclose.apply(this, arguments);
   }
@@ -69,6 +73,8 @@ Object.defineProperty(BaseConnectionDecorator.prototype, "extensions", {
 });
 
 },{}],3:[function(require,module,exports){
+"use strict";
+
 module.exports = MessageBuffer;
 function MessageBuffer() {
   this._messages = [];
@@ -76,12 +82,12 @@ function MessageBuffer() {
   this._messageId = 0;
 }
 
-MessageBuffer.formatId = formatId
+MessageBuffer.formatId = formatId;
 function formatId(id) {
   return id.toString(16).toUpperCase();
 };
 
-MessageBuffer.prototype.write = function(msg) {
+MessageBuffer.prototype.write = function (msg) {
   msg = formatId(this._messageId++) + "#" + msg;
   this._messages.push(msg);
   return msg;
@@ -91,7 +97,7 @@ MessageBuffer.prototype.write = function(msg) {
 // discarded.
 //
 // Can throw an error, if nextId is outside of the valid range.
-MessageBuffer.prototype.discard = function(nextId) {
+MessageBuffer.prototype.discard = function (nextId) {
   var keepIdx = nextId - this._startIndex;
   if (keepIdx < 0) {
     throw new Error("Discard position id too small");
@@ -101,27 +107,29 @@ MessageBuffer.prototype.discard = function(nextId) {
   }
   this._messages = this._messages.slice(keepIdx);
   this._startIndex = nextId;
-  return keepIdx;  // equal to the number of messages we dropped
+  return keepIdx; // equal to the number of messages we dropped
 };
 
-MessageBuffer.prototype.nextId = function() {
+MessageBuffer.prototype.nextId = function () {
   return this._messageId;
 };
 
 // Can throw an error, if startId is outside of the valid range.
-MessageBuffer.prototype.getMessagesFrom = function(startId) {
+MessageBuffer.prototype.getMessagesFrom = function (startId) {
   var from = startId - this._startIndex;
   if (from < 0) {
-    throw new Error("Message buffer underrun detected")
+    throw new Error("Message buffer underrun detected");
   }
   if (from > this._messages.length) {
-    throw new Error("Message id larger than expected")
+    throw new Error("Message id larger than expected");
   }
 
   return this._messages.slice(from);
 };
 
 },{}],4:[function(require,module,exports){
+"use strict";
+
 var MultiplexClient = require("../multiplex-client");
 
 // The job of this decorator is to wrap the underlying
@@ -134,9 +142,9 @@ var MultiplexClient = require("../multiplex-client");
 //
 // * Writes to ctx: multiplexClient (MultiplexClient)
 // * Reads from ctx: nothing
-exports.decorate = function(factory, options) {
-  return function(url, ctx, callback) {
-    return factory(url, ctx, function(err, conn) {
+exports.decorate = function (factory, options) {
+  return function (url, ctx, callback) {
+    return factory(url, ctx, function (err, conn) {
       if (err) {
         callback(err);
         return;
@@ -146,7 +154,7 @@ exports.decorate = function(factory, options) {
         var client = new MultiplexClient(conn);
         ctx.multiplexClient = client;
         callback(null, client.open(""));
-      } catch(e) {
+      } catch (e) {
         callback(e);
       }
     });
@@ -154,6 +162,8 @@ exports.decorate = function(factory, options) {
 };
 
 },{"../multiplex-client":9}],5:[function(require,module,exports){
+"use strict";
+
 var assert = require("assert");
 
 var inherits = require("inherits");
@@ -166,12 +176,12 @@ var WebSocket = require("../websocket");
 var BaseConnectionDecorator = require("./base-connection-decorator");
 var MessageBuffer = require("./message-buffer");
 
-function generateId(size){
+function generateId(size) {
   var chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
   var id = '';
-  for (var i=0; i < size; i++) {
+  for (var i = 0; i < size; i++) {
     var rnum = Math.floor(Math.random() * chars.length);
-    id += chars.substring(rnum,rnum+1);
+    id += chars.substring(rnum, rnum + 1);
   }
   return id;
 };
@@ -183,9 +193,9 @@ function generateId(size){
 // * Reads from options: reconnectTimeout (in millis; <0 to disable)
 // * Writes to ctx: nothing
 // * Reads from ctx: nothing
-exports.decorate = function(factory, options) {
+exports.decorate = function (factory, options) {
   // Returns a connection promise
-  return function(url, ctx, callback) {
+  return function (url, ctx, callback) {
 
     // The robustId is an id that will be shared by all
     // physical connections belonging to this logical
@@ -193,7 +203,7 @@ exports.decorate = function(factory, options) {
     var robustId = generateId(18);
 
     var timeout = options.reconnectTimeout;
-    if (typeof(timeout) === "undefined") {
+    if (typeof timeout === "undefined") {
       timeout = 15000;
     }
 
@@ -214,8 +224,8 @@ function promisify_p(conn) {
     promise(true, [conn]);
   } else if (conn.readyState === WebSocket.CLOSING || conn.readyState === WebSocket.CLOSED) {
     promise(false, [new Error("WebSocket was closed")]);
-  } else if (conn.readyState === WebSocket.CONNECTING){
-    conn.onopen = function() {
+  } else if (conn.readyState === WebSocket.CONNECTING) {
+    conn.onopen = function () {
       conn.onopen = null;
       conn.onclose = null;
       conn.onerror = null;
@@ -238,13 +248,13 @@ function promisify_p(conn) {
       // much harder for the user to know that something is wrong.
       promise(true, [new util.PauseConnection(conn)]);
     };
-    conn.onerror = function(e) {
+    conn.onerror = function (e) {
       conn.onopen = null;
       conn.onclose = null;
       conn.onerror = null;
       promise(false, [new Error("WebSocket errored"), e]);
     };
-    conn.onclose = function(e) {
+    conn.onclose = function (e) {
       conn.onopen = null;
       conn.onclose = null;
       conn.onerror = null;
@@ -282,21 +292,21 @@ function RobustConnection(timeout, factory, url, ctx, robustId) {
   this._stayClosed = false;
 
   // Initialize all event handlers to no-op.
-  this.onopen = this.onclose = this.onerror = this.onmessage = function() {};
+  this.onopen = this.onclose = this.onerror = this.onmessage = function () {};
 
   // We'll need to carefully maintain the readyState manually.
   this._setReadyState(WebSocket.CONNECTING);
   this._connect(this._timeout);
 }
 
-RobustConnection.prototype._setReadyState = function(value) {
-  if (typeof(this.readyState) !== "undefined" && this.readyState > value) {
+RobustConnection.prototype._setReadyState = function (value) {
+  if (typeof this.readyState !== "undefined" && this.readyState > value) {
     throw new Error("Invalid readyState transition: " + this.readyState + " to " + value);
   }
   this.readyState = value;
 };
 
-RobustConnection.prototype._acceptConn = function(conn) {
+RobustConnection.prototype._acceptConn = function (conn) {
 
   // It's a programmer error to accept a connection while the previous
   // connection is still active...
@@ -320,8 +330,7 @@ RobustConnection.prototype._acceptConn = function(conn) {
     // This is our first time getting an open connection!
     // Transition to OPEN and let our clients know.
     this._setReadyState(WebSocket.OPEN);
-    if (this.onopen)
-      this.onopen(util.createEvent("open"));
+    if (this.onopen) this.onopen(util.createEvent("open"));
   } else {
     log("Connection restored");
 
@@ -334,7 +343,7 @@ RobustConnection.prototype._acceptConn = function(conn) {
   }
 };
 
-RobustConnection.prototype._clearConn = function() {
+RobustConnection.prototype._clearConn = function () {
   if (this._conn) {
     this._conn.onopen = null;
     this._conn.onclose = null;
@@ -347,7 +356,7 @@ RobustConnection.prototype._clearConn = function() {
 // Call this when we don't have a connection (either we have never
 // had one yet, or the last one we had is now closed and removed)
 // but we want to get a new one.
-RobustConnection.prototype._connect = function(timeoutMillis) {
+RobustConnection.prototype._connect = function (timeoutMillis) {
   var self = this;
 
   assert(!self._conn, "_connect called but _conn is not null");
@@ -357,78 +366,76 @@ RobustConnection.prototype._connect = function(timeoutMillis) {
   // Because it uses promisify_p, a successful resolve of the promise
   // means not only that the connection was created, but also entered
   // the WebSocket.OPEN state.
-  function open_p() {
+  var open_p = function open_p() {
     var params = {};
     params[self.readyState === WebSocket.CONNECTING ? "n" : "o"] = self._robustId;
     var url = util.addPathParams(self._url, params);
 
     var promise = util.promise();
-    self._factory(url, self._ctx, function(err, conn) {
+    self._factory(url, self._ctx, function (err, conn) {
       if (err) {
         promise(false, [err]);
         return;
       }
 
-      promisify_p(conn).then(
-        function() { promise(true, arguments); },
-        function() { promise(false, arguments); }
-      ).done();
+      promisify_p(conn).then(function () {
+        promise(true, arguments);
+      }, function () {
+        promise(false, arguments);
+      }).done();
     });
     return promise;
-  }
+  };
 
   var expires = self.readyState !== WebSocket.OPEN ? 0 : Date.now() + timeoutMillis;
 
-  util.retryPromise_p(open_p, util.createNiceBackoffDelayFunc(), expires).then(
-    function(conn) {
+  util.retryPromise_p(open_p, util.createNiceBackoffDelayFunc(), expires).then(function (conn) {
 
-      assert(!self._conn, "Connection promise fulfilled, but _conn was not null!");
+    assert(!self._conn, "Connection promise fulfilled, but _conn was not null!");
 
-      // If RobustConnection.close() was called in the
-      // meantime, close the new conn and bail out.
-      if (self.readyState === WebSocket.CLOSED) {
-        conn.close();
-        return;
-      }
-
-      self._acceptConn(conn);
-      conn.resume();
-    },
-    function(err) {
-      log(err);
-
-      assert(!self._conn, "Connection promise rejected, but _conn was not null!");
-
-      // If RobustConnection.close() was called in the
-      // meantime, just get out of here.
-      if (self.readyState === WebSocket.CLOSED) {
-        return;
-      }
-
-      // If we're still waiting for the initial connection, we
-      // want to raise an additional error event. (Is this
-      // really necessary? I'm just guessing.)
-      try {
-        if (self.readyState === WebSocket.CONNECTING) {
-          self.onerror(util.createEvent("error"));
-        }
-      } finally {
-        // Whether onerror succeeds or not, we always want to close.
-        // Note that code 1006 can't be passed to WebSocket.close (at
-        // least on my Chrome install) but in this case we know for
-        // sure there's no WebSocket to call close on--the connection
-        // attempt failed, so this code will just be used to make an
-        // event.
-        self.close(1006, "", false);
-      }
+    // If RobustConnection.close() was called in the
+    // meantime, close the new conn and bail out.
+    if (self.readyState === WebSocket.CLOSED) {
+      conn.close();
+      return;
     }
-  ).done();
+
+    self._acceptConn(conn);
+    conn.resume();
+  }, function (err) {
+    log(err);
+
+    assert(!self._conn, "Connection promise rejected, but _conn was not null!");
+
+    // If RobustConnection.close() was called in the
+    // meantime, just get out of here.
+    if (self.readyState === WebSocket.CLOSED) {
+      return;
+    }
+
+    // If we're still waiting for the initial connection, we
+    // want to raise an additional error event. (Is this
+    // really necessary? I'm just guessing.)
+    try {
+      if (self.readyState === WebSocket.CONNECTING) {
+        self.onerror(util.createEvent("error"));
+      }
+    } finally {
+      // Whether onerror succeeds or not, we always want to close.
+      // Note that code 1006 can't be passed to WebSocket.close (at
+      // least on my Chrome install) but in this case we know for
+      // sure there's no WebSocket to call close on--the connection
+      // attempt failed, so this code will just be used to make an
+      // event.
+      self.close(1006, "", false);
+    }
+  }).done();
 };
 
-RobustConnection.prototype._handleClose = function(e) {
+RobustConnection.prototype._handleClose = function (e) {
   this._clearConn();
   // Use 4567 for interactive debugging purposes to trigger reconnect
-  if ((e.code !== 4567) && e.wasClean || this._stayClosed) {
+  if (e.code !== 4567 && e.wasClean || this._stayClosed) {
     // Apparently this closure was on purpose; don't try to reconnect
     this._setReadyState(WebSocket.CLOSED);
     this.onclose(e);
@@ -442,19 +449,17 @@ RobustConnection.prototype._handleClose = function(e) {
 // Event callback for this._conn.onmessage. Delegates to public
 // member. We have to add this level of indirection to allow
 // the value of this.onmessage to change over time.
-RobustConnection.prototype._handleMessage = function(e) {
-  if (this.onmessage)
-    this.onmessage(e);
+RobustConnection.prototype._handleMessage = function (e) {
+  if (this.onmessage) this.onmessage(e);
 };
 // Event callback for this._conn.onerror. Delegates to public
 // member. We have to add this level of indirection to allow
 // the value of this.onerror to change over time.
-RobustConnection.prototype._handleError = function(e) {
-  if (this.onerror)
-    this.onerror(e);
+RobustConnection.prototype._handleError = function (e) {
+  if (this.onerror) this.onerror(e);
 };
 
-RobustConnection.prototype.send = function(data) {
+RobustConnection.prototype.send = function (data) {
   if (this.readyState === WebSocket.CONNECTING) {
     throw new Error("Can't send when connection is in CONNECTING state");
   } else if (this.readyState > WebSocket.OPEN) {
@@ -468,7 +473,7 @@ RobustConnection.prototype.send = function(data) {
   }
 };
 
-RobustConnection.prototype.close = function(code, reason) {
+RobustConnection.prototype.close = function (code, reason) {
   if (this.readyState === WebSocket.CLOSED) {
     return;
   }
@@ -485,7 +490,7 @@ RobustConnection.prototype.close = function(code, reason) {
     try {
       this._stayClosed = true; // Make sure not to reconnect
       this._conn.close(code, reason);
-    } catch(e) {
+    } catch (e) {
       // Undo the setting of the flag.
       this._stayClosed = false;
       throw e;
@@ -495,7 +500,6 @@ RobustConnection.prototype.close = function(code, reason) {
     // (and I don't think it will have) then we need to mark ourselves
     // as CLOSING.
     this._setReadyState(Math.max(this.readyState, WebSocket.CLOSING));
-
   } else {
 
     // There's no active connection. Just immediately put us in closed
@@ -510,7 +514,6 @@ RobustConnection.prototype.close = function(code, reason) {
     }
   }
 };
-
 
 function BufferedResendConnection(conn) {
   BaseConnectionDecorator.call(this, conn);
@@ -537,12 +540,12 @@ function BufferedResendConnection(conn) {
 
 inherits(BufferedResendConnection, BaseConnectionDecorator);
 
-BufferedResendConnection.prototype._handleDisconnect = function() {
+BufferedResendConnection.prototype._handleDisconnect = function () {
   this._disconnected = true;
 };
-BufferedResendConnection.prototype._handleReconnect = function() {
+BufferedResendConnection.prototype._handleReconnect = function () {
   var self = this;
-  this._conn.onmessage = function(e) {
+  this._conn.onmessage = function (e) {
     self._disconnected = false;
     self._conn.onmessage = self._handleMessage.bind(self);
 
@@ -566,9 +569,8 @@ BufferedResendConnection.prototype._handleReconnect = function() {
         self._messageBuffer.discard(continueId);
         // Note: getMessageFrom can throw
         var msgs = self._messageBuffer.getMessagesFrom(continueId);
-        if (msgs.length > 0)
-          debug(msgs.length + " messages were dropped; resending");
-        msgs.forEach(function(msg) {
+        if (msgs.length > 0) debug(msgs.length + " messages were dropped; resending");
+        msgs.forEach(function (msg) {
           // This msg is already formatted by MessageBuffer (tagged with id)
           self._conn.send(msg);
         });
@@ -581,7 +583,7 @@ BufferedResendConnection.prototype._handleReconnect = function() {
   };
 };
 
-BufferedResendConnection.prototype._handleMessage = function(e) {
+BufferedResendConnection.prototype._handleMessage = function (e) {
   // At any time we can receive an ACK from the server that tells us
   // it's safe to discard existing messages.
   var ack = /^ACK ([\dA-F]+)$/.exec(e.data);
@@ -609,8 +611,8 @@ BufferedResendConnection.prototype._handleMessage = function(e) {
   }
 };
 
-BufferedResendConnection.prototype.send = function(data) {
-  if (typeof(data) === "undefined" || data === null) {
+BufferedResendConnection.prototype.send = function (data) {
+  if (typeof data === "undefined" || data === null) {
     throw new Error("data argument must not be undefined or null");
   }
 
@@ -621,11 +623,12 @@ BufferedResendConnection.prototype.send = function(data) {
 
   // If not disconnected, attempt to send; otherwise, it's enough
   // that we wrote it to the buffer.
-  if (!this._disconnected)
-    this._conn.send(data);
+  if (!this._disconnected) this._conn.send(data);
 };
 
 },{"../debug":1,"../log":7,"../util":12,"../websocket":13,"./base-connection-decorator":2,"./message-buffer":3,"assert":14,"inherits":19}],6:[function(require,module,exports){
+"use strict";
+
 var util = require('../util');
 
 // The job of this decorator is to request a token from
@@ -633,8 +636,8 @@ var util = require('../util');
 //
 // * Writes to ctx: nothing
 // * Reads from ctx: nothing
-exports.decorate = function(factory, options) {
-  return function(url, ctx, callback) {
+exports.decorate = function (factory, options) {
+  return function (url, ctx, callback) {
     if (!exports.ajax) {
       throw new Error("No HTTP transport was provided");
     }
@@ -643,11 +646,11 @@ exports.decorate = function(factory, options) {
       type: "GET",
       cache: false,
       dataType: "text",
-      success: function(data, textStatus) {
-        var newUrl = util.addPathParams(url, {"t": data});
+      success: function success(data, textStatus) {
+        var newUrl = util.addPathParams(url, { "t": data });
         factory(newUrl, ctx, callback);
       },
-      error: function(jqXHR, textStatus, errorThrown) {
+      error: function error(jqXHR, textStatus, errorThrown) {
         callback(errorThrown);
       }
     });
@@ -656,13 +659,15 @@ exports.decorate = function(factory, options) {
 
 // Override this to mock.
 exports.ajax = null;
-if (typeof(jQuery) !== "undefined") {
+if (typeof jQuery !== "undefined") {
   exports.ajax = jQuery.ajax;
 }
 
 },{"../util":12}],7:[function(require,module,exports){
-module.exports = function(msg) {
-  if (typeof(console) !== "undefined" && !module.exports.suppress) {
+"use strict";
+
+module.exports = function (msg) {
+  if (typeof console !== "undefined" && !module.exports.suppress) {
     console.log(new Date() + " [INF]: " + msg);
   }
 };
@@ -671,6 +676,8 @@ module.exports.suppress = false;
 
 },{}],8:[function(require,module,exports){
 (function (global){
+'use strict';
+
 var util = require('./util');
 var token = require('./decorators/token');
 //var subapp = require('./subapp');
@@ -718,20 +725,20 @@ function initSession(shiny, options) {
   if (false && subapp.isSubApp()) {
     // TODO
   } else {
-    // Not a subapp
-    // if (options.extendsession) {
-    //   extendsession.init();
-    // }
+      // Not a subapp
+      // if (options.extendsession) {
+      //   extendsession.init();
+      // }
 
-    factory = sockjs.createFactory(options);
-    if (options.reconnect) {
-      factory = reconnect.decorate(factory, options);
+      factory = sockjs.createFactory(options);
+      if (options.reconnect) {
+        factory = reconnect.decorate(factory, options);
+      }
+      factory = multiplex.decorate(factory);
     }
-    factory = multiplex.decorate(factory);
-  }
 
   // Register the connection with Shiny.createSocket, etc.
-  shiny.createSocket = function() {
+  shiny.createSocket = function () {
     var url = location.protocol + "//" + location.host + location.pathname.replace(/\\$/, "");
     url += "/__sockjs__/";
 
@@ -741,13 +748,15 @@ function initSession(shiny, options) {
   };
 }
 
-global.preShinyInit = function(options) {
+global.preShinyInit = function (options) {
   initSession(global.Shiny, options);
-}
+};
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"./decorators/multiplex":4,"./decorators/reconnect":5,"./decorators/token":6,"./promised-connection":10,"./sockjs":11,"./util":12}],9:[function(require,module,exports){
 (function (global){
+'use strict';
+
 var log = require('./log');
 var debug = require('./debug');
 
@@ -772,13 +781,13 @@ function MultiplexClient(conn) {
   // event is received
   this._pendingChannels = [];
   // A list of functions that fire when our connection goes away.
-  this.onclose = []
+  this.onclose = [];
 
   var self = this;
-  this._conn.onopen = function() {
+  this._conn.onopen = function () {
     log("Connection opened. " + global.location.href);
     var channel;
-    while ((channel = self._pendingChannels.shift())) {
+    while (channel = self._pendingChannels.shift()) {
       // Be sure to check readyState so we don't open connections for
       // channels that were closed before they finished opening
       if (channel.readyState === 0) {
@@ -788,7 +797,7 @@ function MultiplexClient(conn) {
       }
     }
   };
-  this._conn.onclose = function(e) {
+  this._conn.onclose = function (e) {
     log("Connection closed. Info: " + JSON.stringify(e));
     debug("SockJS connection closed");
     // If the SockJS connection is terminated from the other end (or due
@@ -803,7 +812,7 @@ function MultiplexClient(conn) {
       self.onclose[i]();
     }
   };
-  this._conn.onmessage = function(e) {
+  this._conn.onmessage = function (e) {
     var msg = parseMultiplexData(e.data);
     if (!msg) {
       log("Invalid multiplex packet received from server");
@@ -823,13 +832,12 @@ function MultiplexClient(conn) {
       // So don't send to a single channel.
       self._conn.close();
     } else if (method === "m") {
-      channel.onmessage({data: payload});
+      channel.onmessage({ data: payload });
     }
   };
 }
-MultiplexClient.prototype.open = function(url) {
-  var channel = new MultiplexClientChannel(this, this._nextId++ + "",
-                                           this._conn, url);
+MultiplexClient.prototype.open = function (url) {
+  var channel = new MultiplexClientChannel(this, this._nextId++ + "", this._conn, url);
   this._channels[channel.id] = channel;
   this._channelCount++;
 
@@ -838,19 +846,19 @@ MultiplexClient.prototype.open = function(url) {
       this._pendingChannels.push(channel);
       break;
     case 1:
-      setTimeout(function() {
+      setTimeout(function () {
         channel._open();
       }, 0);
       break;
     default:
-      setTimeout(function() {
+      setTimeout(function () {
         channel.close();
       }, 0);
       break;
   }
   return channel;
 };
-MultiplexClient.prototype.removeChannel = function(id) {
+MultiplexClient.prototype.removeChannel = function (id) {
   delete this._channels[id];
   this._channelCount--;
   debug("Removed channel " + id + ", " + this._channelCount + " left");
@@ -866,50 +874,45 @@ function MultiplexClientChannel(owner, id, conn, url) {
   this.conn = conn;
   this.url = url;
   this.readyState = 0;
-  this.onopen = function() {};
-  this.onclose = function() {};
-  this.onmessage = function() {};
+  this.onopen = function () {};
+  this.onclose = function () {};
+  this.onmessage = function () {};
 }
-MultiplexClientChannel.prototype._open = function(parentURL) {
+MultiplexClientChannel.prototype._open = function (parentURL) {
   debug("Open channel " + this.id);
   this.readyState = 1;
 
   //var relURL = getRelativePath(parentURL, this.url)
 
   this.conn.send(formatOpenEvent(this.id, this.url));
-  if (this.onopen)
-    this.onopen();
+  if (this.onopen) this.onopen();
 };
-MultiplexClientChannel.prototype.send = function(data) {
-  if (this.readyState === 0)
-    throw new Error("Invalid state: can't send when readyState is 0");
-  if (this.readyState === 1)
-    this.conn.send(formatMessage(this.id, data));
+MultiplexClientChannel.prototype.send = function (data) {
+  if (this.readyState === 0) throw new Error("Invalid state: can't send when readyState is 0");
+  if (this.readyState === 1) this.conn.send(formatMessage(this.id, data));
 };
-MultiplexClientChannel.prototype.close = function(code, reason) {
-  if (this.readyState >= 2)
-    return;
+MultiplexClientChannel.prototype.close = function (code, reason) {
+  if (this.readyState >= 2) return;
   debug("Close channel " + this.id);
   if (this.conn.readyState === 1) {
     // Is the underlying connection open? Send a close message.
     this.conn.send(formatCloseEvent(this.id, code, reason));
   }
-  this._destroy({code: code, reason: reason, wasClean: true});
+  this._destroy({ code: code, reason: reason, wasClean: true });
 };
 // Internal version of close that doesn't notify the server
-MultiplexClientChannel.prototype._destroy = function(e) {
+MultiplexClientChannel.prototype._destroy = function (e) {
   var self = this;
   // If we haven't already, invoke onclose handler.
   if (this.readyState !== 3) {
     this.readyState = 3;
     debug("Channel " + this.id + " is closed");
-    setTimeout(function() {
+    setTimeout(function () {
       self._owner.removeChannel(self.id);
-      if (self.onclose)
-        self.onclose(e);
+      if (self.onclose) self.onclose(e);
     }, 0);
   }
-}
+};
 
 function formatMessage(id, message) {
   return id + '|m|' + message;
@@ -918,30 +921,28 @@ function formatOpenEvent(id, url) {
   return id + '|o|' + url;
 }
 function formatCloseEvent(id, code, reason) {
-  return id + '|c|' + JSON.stringify({code: code, reason: reason});
+  return id + '|c|' + JSON.stringify({ code: code, reason: reason });
 }
 function parseMultiplexData(msg) {
   try {
     var m = /^(\d+)\|(m|o|c)\|([\s\S]*)$/m.exec(msg);
-    if (!m)
-      return null;
+    if (!m) return null;
     msg = {
       id: m[1],
       method: m[2],
       payload: m[3]
-    }
+    };
 
     switch (msg.method) {
       case 'm':
         break;
       case 'o':
-        if (msg.payload.length === 0)
-          return null;
+        if (msg.payload.length === 0) return null;
         break;
       case 'c':
         try {
           msg.payload = JSON.parse(msg.payload);
-        } catch(e) {
+        } catch (e) {
           return null;
         }
         break;
@@ -950,8 +951,7 @@ function parseMultiplexData(msg) {
     }
 
     return msg;
-
-  } catch(e) {
+  } catch (e) {
     logger.debug('Error parsing multiplex data: ' + e);
     return null;
   }
@@ -959,6 +959,8 @@ function parseMultiplexData(msg) {
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"./debug":1,"./log":7}],10:[function(require,module,exports){
+"use strict";
+
 var WebSocket = require("./websocket");
 
 module.exports = PromisedConnection;
@@ -967,7 +969,7 @@ function PromisedConnection() {
   this._closed = false;
 }
 
-PromisedConnection.prototype.resolve = function(err, conn) {
+PromisedConnection.prototype.resolve = function (err, conn) {
   if (err) {
     this._closed = true;
     // TODO: raise onerror
@@ -980,22 +982,22 @@ PromisedConnection.prototype.resolve = function(err, conn) {
   if (this._closed) {
     this._conn.close.apply(this._conn, this._closed);
   } else {
-    this._conn.onclose = function(evt) {
+    this._conn.onclose = function (evt) {
       self.onclose(evt);
     };
-    this._conn.onopen = function(evt) {
+    this._conn.onopen = function (evt) {
       self.onopen(evt);
     };
-    this._conn.onmessage = function(evt) {
+    this._conn.onmessage = function (evt) {
       self.onmessage(evt);
     };
-    this._conn.onerror = function(evt) {
+    this._conn.onerror = function (evt) {
       self.onerror(evt);
     };
   }
 };
 
-PromisedConnection.prototype.close = function(code, reason) {
+PromisedConnection.prototype.close = function (code, reason) {
   var self = this;
 
   // Already closed; no-op.
@@ -1014,7 +1016,7 @@ PromisedConnection.prototype.close = function(code, reason) {
     // are optional.
     this._conn.close.apply(this._conn, arguments);
   } else {
-    setTimeout(function() {
+    setTimeout(function () {
       if (self.onclose) {
         var evt = util.createEvent("close", {
           currentTarget: self,
@@ -1030,7 +1032,7 @@ PromisedConnection.prototype.close = function(code, reason) {
   }
 };
 
-PromisedConnection.prototype.send = function(data) {
+PromisedConnection.prototype.send = function (data) {
   if (this._conn) {
     return this._conn.send(data);
   } else if (this.readyState === WebSocket.CONNECTING) {
@@ -1044,14 +1046,15 @@ PromisedConnection.prototype.send = function(data) {
 
 // Convenience method for returning a property on the connection, or
 // if the promise is pending or failed, return some other value.
-PromisedConnection.prototype._getConnProperty = function(prop, ifPending, ifFailed) {
+PromisedConnection.prototype._getConnProperty = function (prop, ifPending, ifFailed) {
   if (!this._conn && this._closed) {
     // Failure
     return ifFailed;
   } else if (this._conn) {
     // Success
     return this._conn[prop];
-  } else { // this._connPromise() === undefined
+  } else {
+    // this._connPromise() === undefined
     return ifPending;
   }
 };
@@ -1060,10 +1063,7 @@ PromisedConnection.prototype._getConnProperty = function(prop, ifPending, ifFail
 
 Object.defineProperty(PromisedConnection.prototype, "readyState", {
   get: function readyState() {
-    if (this._closed)
-      return WebSocket.CLOSED;
-    else
-      return this._getConnProperty("readyState", WebSocket.CONNECTING, WebSocket.CLOSED);
+    if (this._closed) return WebSocket.CLOSED;else return this._getConnProperty("readyState", WebSocket.CONNECTING, WebSocket.CLOSED);
   }
 });
 
@@ -1081,24 +1081,26 @@ Object.defineProperty(PromisedConnection.prototype, "extensions", {
 
 },{"./websocket":13}],11:[function(require,module,exports){
 (function (global){
+"use strict";
+
 var util = require("./util");
 
 var log = require("./log");
 
-exports.createFactory = function(options) {
-  return function(url, context, callback) {
+exports.createFactory = function (options) {
+  return function (url, context, callback) {
     if (!callback) throw new Error("callback is required");
 
     var conn = new SockJS(url, null, options);
 
     global.__shinyserverdebug__ = {
-      interrupt: function() {
-        log("OK, we'll silently drop messages starting now.")
-        conn.send = function(data) {
+      interrupt: function interrupt() {
+        log("OK, we'll silently drop messages starting now.");
+        conn.send = function (data) {
           log("Dropping message " + data);
         };
       },
-      disconnect: function() {
+      disconnect: function disconnect() {
         log("OK, we'll simulate a disconnection.");
         // 4567 is magic code number that tells the reconnect
         // decorator to try reconnecting, which we normally
@@ -1114,11 +1116,13 @@ exports.createFactory = function(options) {
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"./log":7,"./util":12}],12:[function(require,module,exports){
 (function (global){
+"use strict";
+
 var pinkySwear = require("pinkyswear");
 
-exports.addPathParams = function(url, params) {
+exports.addPathParams = function (url, params) {
   var pathFragment = "";
-  for (key in params) {
+  for (var key in params) {
     if (params.hasOwnProperty(key)) {
       if (!/^\w*$/.test(key) || !/^\w*$/.test(params[key])) {
         throw new Error("util.addPathParams doesn't implement escaping");
@@ -1129,11 +1133,11 @@ exports.addPathParams = function(url, params) {
   return url.replace(/\/?(\?|$)/, pathFragment + "$1");
 };
 
-exports.createNiceBackoffDelayFunc = function() {
+exports.createNiceBackoffDelayFunc = function () {
   // delays, in seconds; recycle the last value as needed
   var niceBackoff = [0, 1, 2, 3, 5];
   var pos = -1;
-  return function() {
+  return function () {
     pos = Math.min(++pos, niceBackoff.length - 1);
     return niceBackoff[pos] * 1000;
   };
@@ -1142,7 +1146,7 @@ exports.createNiceBackoffDelayFunc = function() {
 // Call a function that returns a promise one or more times, until
 // it either returns successfully, or time expires. Use a configurable
 // delay in between attempts.
-exports.retryPromise_p = function(create_p, delayFunc, expiration) {
+exports.retryPromise_p = function (create_p, delayFunc, expiration) {
   var promise = exports.promise();
 
   var delay = delayFunc();
@@ -1151,51 +1155,49 @@ exports.retryPromise_p = function(create_p, delayFunc, expiration) {
   // But in no case should the delay be less than zero, either.
   delay = Math.max(0, delay);
 
-  setTimeout(function() {
-    create_p().then(
-      function(value) {
-        promise(true, [value]);
-      },
-      function(err) {
-        if (Date.now() >= expiration) {
-          promise(false, [err]);
-        } else {
-          // Recurse. pinkySwear doesn't give us a way to easily
-          // resolve a promise with another promise, so we have to
-          // do it manually.
-          exports.retryPromise_p(create_p, delayFunc, expiration).then(
-            function() { promise(true, arguments); },
-            function() { promise(false, arguments); }
-          ).done();
-        }
+  setTimeout(function () {
+    create_p().then(function (value) {
+      promise(true, [value]);
+    }, function (err) {
+      if (Date.now() >= expiration) {
+        promise(false, [err]);
+      } else {
+        // Recurse. pinkySwear doesn't give us a way to easily
+        // resolve a promise with another promise, so we have to
+        // do it manually.
+        exports.retryPromise_p(create_p, delayFunc, expiration).then(function () {
+          promise(true, arguments);
+        }, function () {
+          promise(false, arguments);
+        }).done();
       }
-    ).done();
+    }).done();
   }, delay);
 
   return promise;
 };
 
-exports.createEvent = function(type, props) {
+exports.createEvent = function (type, props) {
   if (global.document) {
     return new Event(type, props);
   } else if (props) {
     props.type = type;
     return props;
   } else {
-    return {type: type};
+    return { type: type };
   }
 };
 
 function addDone(prom) {
-  prom.done = function() {
-    prom.then(null, function(err) {
+  prom.done = function () {
+    prom.then(null, function (err) {
       console.log("Unhandled promise error: " + err);
       console.log(err.stack);
     });
   };
   return prom;
 }
-exports.promise = function() {
+exports.promise = function () {
   return pinkySwear(addDone);
 };
 
@@ -1207,10 +1209,10 @@ function PauseConnection(conn) {
   this._timeout = null;
 
   var self = this;
-  ["onopen", "onmessage", "onerror", "onclose"].forEach(function(evt) {
-    conn[evt] = function() {
+  ["onopen", "onmessage", "onerror", "onclose"].forEach(function (evt) {
+    conn[evt] = function () {
       if (self._paused) {
-        self._events.push({event: evt, args: arguments});
+        self._events.push({ event: evt, args: arguments });
       } else {
         self[evt].apply(this, arguments);
       }
@@ -1218,9 +1220,9 @@ function PauseConnection(conn) {
   });
 }
 
-PauseConnection.prototype.resume = function() {
+PauseConnection.prototype.resume = function () {
   var self = this;
-  this._timeout = setTimeout(function() {
+  this._timeout = setTimeout(function () {
     while (self._events.length) {
       var e = self._events.shift();
       self[e.event].apply(self, e.args);
@@ -1228,17 +1230,17 @@ PauseConnection.prototype.resume = function() {
     self._paused = false;
   }, 0);
 };
-PauseConnection.prototype.pause = function() {
+PauseConnection.prototype.pause = function () {
   clearTimeout(this._timeout);
   this._paused = true;
-}
+};
 
-PauseConnection.prototype.close = function() {
+PauseConnection.prototype.close = function () {
   this._conn.close.apply(this._conn, arguments);
-}
-PauseConnection.prototype.send = function() {
+};
+PauseConnection.prototype.send = function () {
   this._conn.send.apply(this._conn, arguments);
-}
+};
 
 Object.defineProperty(PauseConnection.prototype, "readyState", {
   get: function readyState() {
@@ -1263,6 +1265,8 @@ Object.defineProperty(PauseConnection.prototype, "extensions", {
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"pinkyswear":20}],13:[function(require,module,exports){
+"use strict";
+
 // Constants from WebSocket and SockJS APIs.
 
 exports.CONNECTING = 0;
