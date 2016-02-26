@@ -1,6 +1,8 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 "use strict";
 
+// No ES6 allowed in this directory!
+
 module.exports = MessageBuffer;
 function MessageBuffer() {
   this._messages = [];
@@ -56,6 +58,37 @@ MessageBuffer.prototype.getMessagesFrom = function (startId) {
 },{}],2:[function(require,module,exports){
 "use strict";
 
+module.exports = MessageReceiver;
+function MessageReceiver() {
+  this._pendingMsgId = 0;
+}
+
+MessageReceiver.prototype.receive = function (msg) {
+  var match = /^([\dA-F]+)#/.exec(msg);
+  if (!match) {
+    throw new Error("Invalid robust-message, no msg-id found");
+  }
+
+  this._pendingMsgId = parseInt(match[1], 16) + 1;
+
+  return msg.replace(/^([\dA-F]+)#/, "");
+};
+
+MessageReceiver.prototype.nextId = function () {
+  return this._pendingMsgId;
+};
+
+MessageReceiver.prototype.ACK = function () {
+  return "ACK " + this._pendingMsgId.toString(16).toUpperCase();
+};
+
+MessageReceiver.prototype.CONTINUE = function () {
+  return "CONTINUE " + this._pendingMsgId.toString(16).toUpperCase();
+};
+
+},{}],3:[function(require,module,exports){
+"use strict";
+
 module.exports = function (msg) {
   if (typeof console !== "undefined" && !module.exports.suppress) {
     console.log(new Date() + " [DBG]: " + msg);
@@ -64,7 +97,7 @@ module.exports = function (msg) {
 
 module.exports.suppress = false;
 
-},{}],3:[function(require,module,exports){
+},{}],4:[function(require,module,exports){
 "use strict";
 
 module.exports = BaseConnectionDecorator;
@@ -127,7 +160,7 @@ Object.defineProperty(BaseConnectionDecorator.prototype, "extensions", {
   }
 });
 
-},{}],4:[function(require,module,exports){
+},{}],5:[function(require,module,exports){
 "use strict";
 
 var MultiplexClient = require("../multiplex-client");
@@ -161,7 +194,7 @@ exports.decorate = function (factory, options) {
   };
 };
 
-},{"../multiplex-client":9}],5:[function(require,module,exports){
+},{"../multiplex-client":10}],6:[function(require,module,exports){
 "use strict";
 
 var assert = require("assert");
@@ -175,6 +208,7 @@ var WebSocket = require("../websocket");
 
 var BaseConnectionDecorator = require("./base-connection-decorator");
 var MessageBuffer = require("../../common/message-buffer");
+var MessageReceiver = require("../../common/message-receiver");
 
 function generateId(size) {
   var chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -523,6 +557,7 @@ function BufferedResendConnection(conn) {
   assert(conn.constructor === RobustConnection);
 
   this._messageBuffer = new MessageBuffer();
+  this._messageReceiver = new MessageReceiver();
 
   this._disconnected = false;
 
@@ -607,6 +642,9 @@ BufferedResendConnection.prototype._handleMessage = function (e) {
     return;
   }
 
+  e.data = this._messageReceiver.receive(e.data);
+  this._conn.send("ACK " + MessageBuffer.formatId(this._messageReceiver.nextId()));
+
   if (this.onmessage) {
     this.onmessage.apply(this, arguments);
   }
@@ -627,7 +665,7 @@ BufferedResendConnection.prototype.send = function (data) {
   if (!this._disconnected) this._conn.send(data);
 };
 
-},{"../../common/message-buffer":1,"../debug":2,"../log":7,"../util":12,"../websocket":13,"./base-connection-decorator":3,"assert":14,"inherits":18}],6:[function(require,module,exports){
+},{"../../common/message-buffer":1,"../../common/message-receiver":2,"../debug":3,"../log":8,"../util":13,"../websocket":14,"./base-connection-decorator":4,"assert":15,"inherits":19}],7:[function(require,module,exports){
 "use strict";
 
 var util = require('../util');
@@ -664,7 +702,7 @@ if (typeof jQuery !== "undefined") {
   exports.ajax = jQuery.ajax;
 }
 
-},{"../util":12}],7:[function(require,module,exports){
+},{"../util":13}],8:[function(require,module,exports){
 "use strict";
 
 module.exports = function (msg) {
@@ -675,7 +713,7 @@ module.exports = function (msg) {
 
 module.exports.suppress = false;
 
-},{}],8:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 (function (global){
 'use strict';
 
@@ -754,7 +792,7 @@ global.preShinyInit = function (options) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./decorators/multiplex":4,"./decorators/reconnect":5,"./decorators/token":6,"./promised-connection":10,"./sockjs":11,"./util":12}],9:[function(require,module,exports){
+},{"./decorators/multiplex":5,"./decorators/reconnect":6,"./decorators/token":7,"./promised-connection":11,"./sockjs":12,"./util":13}],10:[function(require,module,exports){
 (function (global){
 'use strict';
 
@@ -961,7 +999,7 @@ function parseMultiplexData(msg) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./debug":2,"./log":7}],10:[function(require,module,exports){
+},{"./debug":3,"./log":8}],11:[function(require,module,exports){
 "use strict";
 
 var WebSocket = require("./websocket");
@@ -1082,7 +1120,7 @@ Object.defineProperty(PromisedConnection.prototype, "extensions", {
   }
 });
 
-},{"./websocket":13}],11:[function(require,module,exports){
+},{"./websocket":14}],12:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1117,7 +1155,7 @@ exports.createFactory = function (options) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./log":7,"./util":12}],12:[function(require,module,exports){
+},{"./log":8,"./util":13}],13:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1268,7 +1306,7 @@ Object.defineProperty(PauseConnection.prototype, "extensions", {
 });
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"pinkyswear":19}],13:[function(require,module,exports){
+},{"pinkyswear":20}],14:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -1281,7 +1319,7 @@ var OPEN = exports.OPEN = 1;
 var CLOSING = exports.CLOSING = 2;
 var CLOSED = exports.CLOSED = 3;
 
-},{}],14:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 // http://wiki.commonjs.org/wiki/Unit_Testing/1.0
 //
 // THIS IS NOT TESTED NOR LIKELY TO WORK OUTSIDE V8!
@@ -1642,7 +1680,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":17}],15:[function(require,module,exports){
+},{"util/":18}],16:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -1735,14 +1773,14 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],16:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],17:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -2332,7 +2370,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":16,"_process":15,"inherits":18}],18:[function(require,module,exports){
+},{"./support/isBuffer":17,"_process":16,"inherits":19}],19:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -2357,7 +2395,7 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],19:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 (function (process){
 /*
  * PinkySwear.js 2.2.2 - Minimalistic implementation of the Promises/A+ spec
@@ -2478,4 +2516,4 @@ if (typeof Object.create === 'function') {
 
 
 }).call(this,require('_process'))
-},{"_process":15}]},{},[8]);
+},{"_process":16}]},{},[9]);
