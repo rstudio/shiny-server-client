@@ -357,9 +357,9 @@ RobustConnection.prototype._clearConn = function () {
 // had one yet, or the last one we had is now closed and removed)
 // but we want to get a new one.
 RobustConnection.prototype._connect = function (timeoutMillis) {
-  var self = this;
+  var _this = this;
 
-  assert(!self._conn, "_connect called but _conn is not null");
+  assert(!this._conn, "_connect called but _conn is not null");
   assert(this.readyState <= WebSocket.OPEN, "_connect called from wrong readyState");
 
   // This function can be called repeatedly to get a connection promise.
@@ -368,11 +368,11 @@ RobustConnection.prototype._connect = function (timeoutMillis) {
   // the WebSocket.OPEN state.
   var open_p = function open_p() {
     var params = {};
-    params[self.readyState === WebSocket.CONNECTING ? "n" : "o"] = self._robustId;
-    var url = util.addPathParams(self._url, params);
+    params[_this.readyState === WebSocket.CONNECTING ? "n" : "o"] = _this._robustId;
+    var url = util.addPathParams(_this._url, params);
 
     var promise = util.promise();
-    self._factory(url, self._ctx, function (err, conn) {
+    _this._factory(url, _this._ctx, function (err, conn) {
       if (err) {
         promise(false, [err]);
         return;
@@ -387,29 +387,29 @@ RobustConnection.prototype._connect = function (timeoutMillis) {
     return promise;
   };
 
-  var expires = self.readyState !== WebSocket.OPEN ? 0 : Date.now() + timeoutMillis;
+  var expires = this.readyState !== WebSocket.OPEN ? 0 : Date.now() + timeoutMillis;
 
   util.retryPromise_p(open_p, util.createNiceBackoffDelayFunc(), expires).then(function (conn) {
 
-    assert(!self._conn, "Connection promise fulfilled, but _conn was not null!");
+    assert(!_this._conn, "Connection promise fulfilled, but _conn was not null!");
 
     // If RobustConnection.close() was called in the
     // meantime, close the new conn and bail out.
-    if (self.readyState === WebSocket.CLOSED) {
+    if (_this.readyState === WebSocket.CLOSED) {
       conn.close();
       return;
     }
 
-    self._acceptConn(conn);
+    _this._acceptConn(conn);
     conn.resume();
   }, function (err) {
     log(err);
 
-    assert(!self._conn, "Connection promise rejected, but _conn was not null!");
+    assert(!_this._conn, "Connection promise rejected, but _conn was not null!");
 
     // If RobustConnection.close() was called in the
     // meantime, just get out of here.
-    if (self.readyState === WebSocket.CLOSED) {
+    if (_this.readyState === WebSocket.CLOSED) {
       return;
     }
 
@@ -417,8 +417,8 @@ RobustConnection.prototype._connect = function (timeoutMillis) {
     // want to raise an additional error event. (Is this
     // really necessary? I'm just guessing.)
     try {
-      if (self.readyState === WebSocket.CONNECTING) {
-        self.onerror(util.createEvent("error"));
+      if (_this.readyState === WebSocket.CONNECTING) {
+        _this.onerror(util.createEvent("error"));
       }
     } finally {
       // Whether onerror succeeds or not, we always want to close.
@@ -427,7 +427,7 @@ RobustConnection.prototype._connect = function (timeoutMillis) {
       // sure there's no WebSocket to call close on--the connection
       // attempt failed, so this code will just be used to make an
       // event.
-      self.close(1006, "", false);
+      _this.close(1006, "", false);
     }
   }).done();
 };
@@ -544,10 +544,11 @@ BufferedResendConnection.prototype._handleDisconnect = function () {
   this._disconnected = true;
 };
 BufferedResendConnection.prototype._handleReconnect = function () {
-  var self = this;
+  var _this2 = this;
+
   this._conn.onmessage = function (e) {
-    self._disconnected = false;
-    self._conn.onmessage = self._handleMessage.bind(self);
+    _this2._disconnected = false;
+    _this2._conn.onmessage = _this2._handleMessage.bind(_this2);
 
     // If this is a proper, robustified connection, before we do
     // anything else we'll get a message indicating the most
@@ -566,19 +567,19 @@ BufferedResendConnection.prototype._handleReconnect = function () {
         var continueId = parseInt(res[1], 16);
         debug("Discard and continue from message " + continueId);
         // Note: discard can throw
-        self._messageBuffer.discard(continueId);
+        _this2._messageBuffer.discard(continueId);
         // Note: getMessageFrom can throw
-        var msgs = self._messageBuffer.getMessagesFrom(continueId);
+        var msgs = _this2._messageBuffer.getMessagesFrom(continueId);
         if (msgs.length > 0) debug(msgs.length + " messages were dropped; resending");
         msgs.forEach(function (msg) {
           // This msg is already formatted by MessageBuffer (tagged with id)
-          self._conn.send(msg);
+          _this2._conn.send(msg);
         });
       }
     } catch (e) {
       log("Error: RobustConnection handshake error: " + e);
       log(e.stack);
-      self.close(3007, "RobustConnection handshake error: " + e);
+      _this2.close(3007, "RobustConnection handshake error: " + e);
     }
   };
 };
@@ -598,7 +599,7 @@ BufferedResendConnection.prototype._handleMessage = function (e) {
     } catch (e) {
       log("Error: ACK handling failed: " + e);
       log(e.stack);
-      self.close(3008, "ACK handling failed: " + e);
+      this.close(3008, "ACK handling failed: " + e);
     }
 
     // Don't allow clients to see this message, it's for our internal
@@ -626,7 +627,7 @@ BufferedResendConnection.prototype.send = function (data) {
   if (!this._disconnected) this._conn.send(data);
 };
 
-},{"../debug":1,"../log":7,"../util":12,"../websocket":13,"./base-connection-decorator":2,"./message-buffer":3,"assert":14,"inherits":19}],6:[function(require,module,exports){
+},{"../debug":1,"../log":7,"../util":12,"../websocket":13,"./base-connection-decorator":2,"./message-buffer":3,"assert":14,"inherits":18}],6:[function(require,module,exports){
 "use strict";
 
 var util = require('../util');
@@ -768,6 +769,8 @@ var debug = require('./debug');
 module.exports = MultiplexClient;
 
 function MultiplexClient(conn) {
+  var _this = this;
+
   // The underlying SockJS connection. At this point it is not likely to
   // be opened yet.
   this._conn = conn;
@@ -783,11 +786,10 @@ function MultiplexClient(conn) {
   // A list of functions that fire when our connection goes away.
   this.onclose = [];
 
-  var self = this;
   this._conn.onopen = function () {
     log("Connection opened. " + global.location.href);
     var channel;
-    while (channel = self._pendingChannels.shift()) {
+    while (channel = _this._pendingChannels.shift()) {
       // Be sure to check readyState so we don't open connections for
       // channels that were closed before they finished opening
       if (channel.readyState === 0) {
@@ -803,26 +805,26 @@ function MultiplexClient(conn) {
     // If the SockJS connection is terminated from the other end (or due
     // to loss of connectivity or whatever) then we can notify all the
     // active channels that they are closed too.
-    for (var key in self._channels) {
-      if (self._channels.hasOwnProperty(key)) {
-        self._channels[key]._destroy(e);
+    for (var key in _this._channels) {
+      if (_this._channels.hasOwnProperty(key)) {
+        _this._channels[key]._destroy(e);
       }
     }
-    for (var i = 0; i < self.onclose.length; i++) {
-      self.onclose[i]();
+    for (var i = 0; i < _this.onclose.length; i++) {
+      _this.onclose[i]();
     }
   };
   this._conn.onmessage = function (e) {
     var msg = parseMultiplexData(e.data);
     if (!msg) {
       log("Invalid multiplex packet received from server");
-      self._conn.close();
+      _this._conn.close();
       return;
     }
     var id = msg.id;
     var method = msg.method;
     var payload = msg.payload;
-    var channel = self._channels[id];
+    var channel = _this._channels[id];
     if (!channel) {
       log("Multiplex channel " + id + " not found");
       return;
@@ -830,7 +832,7 @@ function MultiplexClient(conn) {
     if (method === "c") {
       // If we're closing, we want to close everything, not just a subapp.
       // So don't send to a single channel.
-      self._conn.close();
+      _this._conn.close();
     } else if (method === "m") {
       channel.onmessage({ data: payload });
     }
@@ -902,14 +904,15 @@ MultiplexClientChannel.prototype.close = function (code, reason) {
 };
 // Internal version of close that doesn't notify the server
 MultiplexClientChannel.prototype._destroy = function (e) {
-  var self = this;
+  var _this2 = this;
+
   // If we haven't already, invoke onclose handler.
   if (this.readyState !== 3) {
     this.readyState = 3;
     debug("Channel " + this.id + " is closed");
     setTimeout(function () {
-      self._owner.removeChannel(self.id);
-      if (self.onclose) self.onclose(e);
+      _this2._owner.removeChannel(_this2.id);
+      if (_this2.onclose) _this2.onclose(e);
     }, 0);
   }
 };
@@ -970,35 +973,35 @@ function PromisedConnection() {
 }
 
 PromisedConnection.prototype.resolve = function (err, conn) {
+  var _this = this;
+
   if (err) {
     this._closed = true;
     // TODO: raise onerror
     // TODO: raise onclose
   }
 
-  var self = this;
-
   this._conn = conn;
   if (this._closed) {
     this._conn.close.apply(this._conn, this._closed);
   } else {
     this._conn.onclose = function (evt) {
-      self.onclose(evt);
+      _this.onclose(evt);
     };
     this._conn.onopen = function (evt) {
-      self.onopen(evt);
+      _this.onopen(evt);
     };
     this._conn.onmessage = function (evt) {
-      self.onmessage(evt);
+      _this.onmessage(evt);
     };
     this._conn.onerror = function (evt) {
-      self.onerror(evt);
+      _this.onerror(evt);
     };
   }
 };
 
 PromisedConnection.prototype.close = function (code, reason) {
-  var self = this;
+  var _this2 = this;
 
   // Already closed; no-op.
   if (this._closed) {
@@ -1017,16 +1020,16 @@ PromisedConnection.prototype.close = function (code, reason) {
     this._conn.close.apply(this._conn, arguments);
   } else {
     setTimeout(function () {
-      if (self.onclose) {
+      if (_this2.onclose) {
         var evt = util.createEvent("close", {
-          currentTarget: self,
-          target: self,
-          srcElement: self,
+          currentTarget: _this2,
+          target: _this2,
+          srcElement: _this2,
           code: code || 1005,
           reason: reason || "",
           wasClean: true
         });
-        self.onclose(evt);
+        _this2.onclose(evt);
       }
     }, 0);
   }
@@ -1208,26 +1211,27 @@ function PauseConnection(conn) {
   this._events = [];
   this._timeout = null;
 
-  var self = this;
+  var pauseConnection = this;
   ["onopen", "onmessage", "onerror", "onclose"].forEach(function (evt) {
     conn[evt] = function () {
-      if (self._paused) {
-        self._events.push({ event: evt, args: arguments });
+      if (pauseConnection._paused) {
+        pauseConnection._events.push({ event: evt, args: arguments });
       } else {
-        self[evt].apply(this, arguments);
+        pauseConnection[evt].apply(this, arguments);
       }
     };
   });
 }
 
 PauseConnection.prototype.resume = function () {
-  var self = this;
+  var _this = this;
+
   this._timeout = setTimeout(function () {
-    while (self._events.length) {
-      var e = self._events.shift();
-      self[e.event].apply(self, e.args);
+    while (_this._events.length) {
+      var e = _this._events.shift();
+      _this[e.event].apply(_this, e.args);
     }
-    self._paused = false;
+    _this._paused = false;
   }, 0);
 };
 PauseConnection.prototype.pause = function () {
@@ -1264,7 +1268,7 @@ Object.defineProperty(PauseConnection.prototype, "extensions", {
 });
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"pinkyswear":20}],13:[function(require,module,exports){
+},{"pinkyswear":19}],13:[function(require,module,exports){
 "use strict";
 
 // Constants from WebSocket and SockJS APIs.
@@ -1635,32 +1639,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":18}],15:[function(require,module,exports){
-if (typeof Object.create === 'function') {
-  // implementation from standard node.js 'util' module
-  module.exports = function inherits(ctor, superCtor) {
-    ctor.super_ = superCtor
-    ctor.prototype = Object.create(superCtor.prototype, {
-      constructor: {
-        value: ctor,
-        enumerable: false,
-        writable: true,
-        configurable: true
-      }
-    });
-  };
-} else {
-  // old school shim for old browsers
-  module.exports = function inherits(ctor, superCtor) {
-    ctor.super_ = superCtor
-    var TempCtor = function () {}
-    TempCtor.prototype = superCtor.prototype
-    ctor.prototype = new TempCtor()
-    ctor.prototype.constructor = ctor
-  }
-}
-
-},{}],16:[function(require,module,exports){
+},{"util/":17}],15:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -1753,14 +1732,14 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],17:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],18:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -2350,9 +2329,32 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":17,"_process":16,"inherits":15}],19:[function(require,module,exports){
-arguments[4][15][0].apply(exports,arguments)
-},{"dup":15}],20:[function(require,module,exports){
+},{"./support/isBuffer":16,"_process":15,"inherits":18}],18:[function(require,module,exports){
+if (typeof Object.create === 'function') {
+  // implementation from standard node.js 'util' module
+  module.exports = function inherits(ctor, superCtor) {
+    ctor.super_ = superCtor
+    ctor.prototype = Object.create(superCtor.prototype, {
+      constructor: {
+        value: ctor,
+        enumerable: false,
+        writable: true,
+        configurable: true
+      }
+    });
+  };
+} else {
+  // old school shim for old browsers
+  module.exports = function inherits(ctor, superCtor) {
+    ctor.super_ = superCtor
+    var TempCtor = function () {}
+    TempCtor.prototype = superCtor.prototype
+    ctor.prototype = new TempCtor()
+    ctor.prototype.constructor = ctor
+  }
+}
+
+},{}],19:[function(require,module,exports){
 (function (process){
 /*
  * PinkySwear.js 2.2.2 - Minimalistic implementation of the Promises/A+ spec
@@ -2473,4 +2475,4 @@ arguments[4][15][0].apply(exports,arguments)
 
 
 }).call(this,require('_process'))
-},{"_process":16}]},{},[8]);
+},{"_process":15}]},{},[8]);
