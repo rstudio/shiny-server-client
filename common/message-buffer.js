@@ -1,3 +1,5 @@
+// No ES6 allowed in this directory!
+
 module.exports = MessageBuffer;
 function MessageBuffer() {
   this._messages = [];

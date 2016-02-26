@@ -1,4 +1,4 @@
-JSFILES := $(wildcard lib/*.js lib/decorators/*.js)
+JSFILES := $(wildcard lib/*.js lib/decorators/*.js common/*.js)
 TESTS = test/*.js
 REPORTER = list
 

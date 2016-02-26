@@ -1,6 +1,61 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 "use strict";
 
+module.exports = MessageBuffer;
+function MessageBuffer() {
+  this._messages = [];
+  this._startIndex = 0;
+  this._messageId = 0;
+}
+
+MessageBuffer.formatId = formatId;
+function formatId(id) {
+  return id.toString(16).toUpperCase();
+};
+
+MessageBuffer.prototype.write = function (msg) {
+  msg = formatId(this._messageId++) + "#" + msg;
+  this._messages.push(msg);
+  return msg;
+};
+
+// Returns the number of messages that were actually
+// discarded.
+//
+// Can throw an error, if nextId is outside of the valid range.
+MessageBuffer.prototype.discard = function (nextId) {
+  var keepIdx = nextId - this._startIndex;
+  if (keepIdx < 0) {
+    throw new Error("Discard position id too small");
+  }
+  if (keepIdx > this._messages.length) {
+    throw new Error("Discard position id too big");
+  }
+  this._messages = this._messages.slice(keepIdx);
+  this._startIndex = nextId;
+  return keepIdx; // equal to the number of messages we dropped
+};
+
+MessageBuffer.prototype.nextId = function () {
+  return this._messageId;
+};
+
+// Can throw an error, if startId is outside of the valid range.
+MessageBuffer.prototype.getMessagesFrom = function (startId) {
+  var from = startId - this._startIndex;
+  if (from < 0) {
+    throw new Error("Message buffer underrun detected");
+  }
+  if (from > this._messages.length) {
+    throw new Error("Message id larger than expected");
+  }
+
+  return this._messages.slice(from);
+};
+
+},{}],2:[function(require,module,exports){
+"use strict";
+
 module.exports = function (msg) {
   if (typeof console !== "undefined" && !module.exports.suppress) {
     console.log(new Date() + " [DBG]: " + msg);
@@ -9,7 +64,7 @@ module.exports = function (msg) {
 
 module.exports.suppress = false;
 
-},{}],2:[function(require,module,exports){
+},{}],3:[function(require,module,exports){
 "use strict";
 
 module.exports = BaseConnectionDecorator;
@@ -72,61 +127,6 @@ Object.defineProperty(BaseConnectionDecorator.prototype, "extensions", {
   }
 });
 
-},{}],3:[function(require,module,exports){
-"use strict";
-
-module.exports = MessageBuffer;
-function MessageBuffer() {
-  this._messages = [];
-  this._startIndex = 0;
-  this._messageId = 0;
-}
-
-MessageBuffer.formatId = formatId;
-function formatId(id) {
-  return id.toString(16).toUpperCase();
-};
-
-MessageBuffer.prototype.write = function (msg) {
-  msg = formatId(this._messageId++) + "#" + msg;
-  this._messages.push(msg);
-  return msg;
-};
-
-// Returns the number of messages that were actually
-// discarded.
-//
-// Can throw an error, if nextId is outside of the valid range.
-MessageBuffer.prototype.discard = function (nextId) {
-  var keepIdx = nextId - this._startIndex;
-  if (keepIdx < 0) {
-    throw new Error("Discard position id too small");
-  }
-  if (keepIdx > this._messages.length) {
-    throw new Error("Discard position id too big");
-  }
-  this._messages = this._messages.slice(keepIdx);
-  this._startIndex = nextId;
-  return keepIdx; // equal to the number of messages we dropped
-};
-
-MessageBuffer.prototype.nextId = function () {
-  return this._messageId;
-};
-
-// Can throw an error, if startId is outside of the valid range.
-MessageBuffer.prototype.getMessagesFrom = function (startId) {
-  var from = startId - this._startIndex;
-  if (from < 0) {
-    throw new Error("Message buffer underrun detected");
-  }
-  if (from > this._messages.length) {
-    throw new Error("Message id larger than expected");
-  }
-
-  return this._messages.slice(from);
-};
-
 },{}],4:[function(require,module,exports){
 "use strict";
 
@@ -174,7 +174,7 @@ var util = require("../util");
 var WebSocket = require("../websocket");
 
 var BaseConnectionDecorator = require("./base-connection-decorator");
-var MessageBuffer = require("./message-buffer");
+var MessageBuffer = require("../../common/message-buffer");
 
 function generateId(size) {
   var chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -627,7 +627,7 @@ BufferedResendConnection.prototype.send = function (data) {
   if (!this._disconnected) this._conn.send(data);
 };
 
-},{"../debug":1,"../log":7,"../util":12,"../websocket":13,"./base-connection-decorator":2,"./message-buffer":3,"assert":14,"inherits":18}],6:[function(require,module,exports){
+},{"../../common/message-buffer":1,"../debug":2,"../log":7,"../util":12,"../websocket":13,"./base-connection-decorator":3,"assert":14,"inherits":18}],6:[function(require,module,exports){
 "use strict";
 
 var util = require('../util');
@@ -961,7 +961,7 @@ function parseMultiplexData(msg) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./debug":1,"./log":7}],10:[function(require,module,exports){
+},{"./debug":2,"./log":7}],10:[function(require,module,exports){
 "use strict";
 
 var WebSocket = require("./websocket");
@@ -1271,12 +1271,15 @@ Object.defineProperty(PauseConnection.prototype, "extensions", {
 },{"pinkyswear":19}],13:[function(require,module,exports){
 "use strict";
 
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
 // Constants from WebSocket and SockJS APIs.
 
-exports.CONNECTING = 0;
-exports.OPEN = 1;
-exports.CLOSING = 2;
-exports.CLOSED = 3;
+var CONNECTING = exports.CONNECTING = 0;
+var OPEN = exports.OPEN = 1;
+var CLOSING = exports.CLOSING = 2;
+var CLOSED = exports.CLOSED = 3;
 
 },{}],14:[function(require,module,exports){
 // http://wiki.commonjs.org/wiki/Unit_Testing/1.0
