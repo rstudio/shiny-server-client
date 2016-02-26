@@ -3,6 +3,8 @@
 
 // No ES6 allowed in this directory!
 
+var message_utils = require("./message-utils");
+
 module.exports = MessageBuffer;
 function MessageBuffer() {
   this._messages = [];
@@ -10,15 +12,18 @@ function MessageBuffer() {
   this._messageId = 0;
 }
 
-MessageBuffer.formatId = formatId;
-function formatId(id) {
-  return id.toString(16).toUpperCase();
-};
-
 MessageBuffer.prototype.write = function (msg) {
-  msg = formatId(this._messageId++) + "#" + msg;
+  msg = message_utils.formatId(this._messageId++) + "#" + msg;
   this._messages.push(msg);
   return msg;
+};
+
+MessageBuffer.prototype.handleACK = function (msg) {
+  var ackId = message_utils.parseACK(msg);
+  if (ackId === null) {
+    return -1;
+  }
+  return this.discard(ackId);
 };
 
 // Returns the number of messages that were actually
@@ -26,6 +31,11 @@ MessageBuffer.prototype.write = function (msg) {
 //
 // Can throw an error, if nextId is outside of the valid range.
 MessageBuffer.prototype.discard = function (nextId) {
+  // The message ID they send is the first id *not* seen by
+  // their side (and not the last id seen by them). This is
+  // not intuitive, but it makes it possible to indicate
+  // no messages seen ("0") and makes the indexing math a
+  // bit cleaner as well.
   var keepIdx = nextId - this._startIndex;
   if (keepIdx < 0) {
     throw new Error("Discard position id too small");
@@ -55,12 +65,21 @@ MessageBuffer.prototype.getMessagesFrom = function (startId) {
   return this._messages.slice(from);
 };
 
-},{}],2:[function(require,module,exports){
+},{"./message-utils":3}],2:[function(require,module,exports){
 "use strict";
+
+// No ES6 allowed in this directory!
+
+var message_utils = require("./message-utils");
 
 module.exports = MessageReceiver;
 function MessageReceiver() {
   this._pendingMsgId = 0;
+}
+
+MessageReceiver.parseId = parseId;
+function parseId(str) {
+  return parseInt(str, 16);
 }
 
 MessageReceiver.prototype.receive = function (msg) {
@@ -69,7 +88,7 @@ MessageReceiver.prototype.receive = function (msg) {
     throw new Error("Invalid robust-message, no msg-id found");
   }
 
-  this._pendingMsgId = parseInt(match[1], 16) + 1;
+  this._pendingMsgId = message_utils.parseId(match[1]) + 1;
 
   return msg.replace(/^([\dA-F]+)#/, "");
 };
@@ -79,14 +98,55 @@ MessageReceiver.prototype.nextId = function () {
 };
 
 MessageReceiver.prototype.ACK = function () {
-  return "ACK " + this._pendingMsgId.toString(16).toUpperCase();
+  return "ACK " + message_utils.formatId(this._pendingMsgId);
 };
 
 MessageReceiver.prototype.CONTINUE = function () {
-  return "CONTINUE " + this._pendingMsgId.toString(16).toUpperCase();
+  return "CONTINUE " + message_utils.formatId(this._pendingMsgId);
 };
 
-},{}],3:[function(require,module,exports){
+},{"./message-utils":3}],3:[function(require,module,exports){
+"use strict";
+
+exports.formatId = formatId;
+function formatId(id) {
+  return id.toString(16).toUpperCase();
+};
+
+exports.parseId = parseId;
+function parseId(str) {
+  return parseInt(str, 16);
+};
+
+exports.parseTag = function (val) {
+  var m = /^([\dA-F]+)#(.*)$/.exec(val);
+  if (!m) {
+    return null;
+  }
+
+  return {
+    id: parseId(m[1]),
+    data: m[2]
+  };
+};
+
+exports.parseCONTINUE = function (val) {
+  var m = /^CONTINUE ([\dA-F]+)$/.exec(val);
+  if (!m) {
+    return null;
+  }
+  return parseId(m[1]);
+};
+
+exports.parseACK = function (val) {
+  var m = /^ACK ([\dA-F]+)$/.exec(val);
+  if (!m) {
+    return null;
+  }
+  return parseId(m[1]);
+};
+
+},{}],4:[function(require,module,exports){
 "use strict";
 
 module.exports = function (msg) {
@@ -97,7 +157,7 @@ module.exports = function (msg) {
 
 module.exports.suppress = false;
 
-},{}],4:[function(require,module,exports){
+},{}],5:[function(require,module,exports){
 "use strict";
 
 module.exports = BaseConnectionDecorator;
@@ -160,7 +220,7 @@ Object.defineProperty(BaseConnectionDecorator.prototype, "extensions", {
   }
 });
 
-},{}],5:[function(require,module,exports){
+},{}],6:[function(require,module,exports){
 "use strict";
 
 var MultiplexClient = require("../multiplex-client");
@@ -194,7 +254,7 @@ exports.decorate = function (factory, options) {
   };
 };
 
-},{"../multiplex-client":10}],6:[function(require,module,exports){
+},{"../multiplex-client":11}],7:[function(require,module,exports){
 "use strict";
 
 var assert = require("assert");
@@ -209,6 +269,7 @@ var WebSocket = require("../websocket");
 var BaseConnectionDecorator = require("./base-connection-decorator");
 var MessageBuffer = require("../../common/message-buffer");
 var MessageReceiver = require("../../common/message-receiver");
+var message_utils = require("../../common/message-utils");
 
 function generateId(size) {
   var chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -581,6 +642,9 @@ BufferedResendConnection.prototype._handleDisconnect = function () {
 BufferedResendConnection.prototype._handleReconnect = function () {
   var _this2 = this;
 
+  // Tell the other side where we stopped hearing their messages
+  this._conn.send(this._messageReceiver.CONTINUE());
+
   this._conn.onmessage = function (e) {
     _this2._disconnected = false;
     _this2._conn.onmessage = _this2._handleMessage.bind(_this2);
@@ -589,8 +653,8 @@ BufferedResendConnection.prototype._handleReconnect = function () {
     // anything else we'll get a message indicating the most
     // recent message number seen + 1 (or 0 if none seen yet).
     try {
-      var res = /^CONTINUE ([\dA-F]+)$/.exec(e.data);
-      if (!res) {
+      var continueId = message_utils.parseCONTINUE(e.data);
+      if (continueId === null) {
         throw new Error("The RobustConnection handshake failed, CONTINUE expected");
       } else {
         // continueId represents the first id *not* seen by the server.
@@ -599,7 +663,6 @@ BufferedResendConnection.prototype._handleReconnect = function () {
         // us to easily represent the case where the server has not
         // seen any messages (0) and also makes the iterating code here
         // a little cleaner.
-        var continueId = parseInt(res[1], 16);
         debug("Discard and continue from message " + continueId);
         // Note: discard can throw
         _this2._messageBuffer.discard(continueId);
@@ -622,28 +685,22 @@ BufferedResendConnection.prototype._handleReconnect = function () {
 BufferedResendConnection.prototype._handleMessage = function (e) {
   // At any time we can receive an ACK from the server that tells us
   // it's safe to discard existing messages.
-  var ack = /^ACK ([\dA-F]+)$/.exec(e.data);
-  if (ack) {
-    // The message ID the server sends is the first id *not* seen by
-    // the server (and not the last id seen by the server); see
-    // MessageBuffer for the reason why.
-    var msgId = parseInt(ack[1], 16);
-    try {
-      var dropCount = this._messageBuffer.discard(msgId);
-      debug(dropCount + " message(s) discarded from buffer");
-    } catch (e) {
-      log("Error: ACK handling failed: " + e);
-      log(e.stack);
-      this.close(3008, "ACK handling failed: " + e);
+  try {
+    var ackResult = this._messageBuffer.handleACK(e.data);
+    // If the message wasn't an ACK at all, ackResult is a negative num.
+    if (ackResult >= 0) {
+      debug(ackResult + " message(s) discarded from buffer");
+      return;
     }
-
-    // Don't allow clients to see this message, it's for our internal
-    // consumption only.
+  } catch (e) {
+    log("Error: ACK handling failed: " + e);
+    log(e.stack);
+    this.close(3008, "ACK handling failed: " + e);
     return;
   }
 
   e.data = this._messageReceiver.receive(e.data);
-  this._conn.send("ACK " + MessageBuffer.formatId(this._messageReceiver.nextId()));
+  this._conn.send(this._messageReceiver.ACK());
 
   if (this.onmessage) {
     this.onmessage.apply(this, arguments);
@@ -665,7 +722,7 @@ BufferedResendConnection.prototype.send = function (data) {
   if (!this._disconnected) this._conn.send(data);
 };
 
-},{"../../common/message-buffer":1,"../../common/message-receiver":2,"../debug":3,"../log":8,"../util":13,"../websocket":14,"./base-connection-decorator":4,"assert":15,"inherits":19}],7:[function(require,module,exports){
+},{"../../common/message-buffer":1,"../../common/message-receiver":2,"../../common/message-utils":3,"../debug":4,"../log":9,"../util":14,"../websocket":15,"./base-connection-decorator":5,"assert":16,"inherits":20}],8:[function(require,module,exports){
 "use strict";
 
 var util = require('../util');
@@ -702,7 +759,7 @@ if (typeof jQuery !== "undefined") {
   exports.ajax = jQuery.ajax;
 }
 
-},{"../util":13}],8:[function(require,module,exports){
+},{"../util":14}],9:[function(require,module,exports){
 "use strict";
 
 module.exports = function (msg) {
@@ -713,7 +770,7 @@ module.exports = function (msg) {
 
 module.exports.suppress = false;
 
-},{}],9:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 (function (global){
 'use strict';
 
@@ -792,7 +849,7 @@ global.preShinyInit = function (options) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./decorators/multiplex":5,"./decorators/reconnect":6,"./decorators/token":7,"./promised-connection":11,"./sockjs":12,"./util":13}],10:[function(require,module,exports){
+},{"./decorators/multiplex":6,"./decorators/reconnect":7,"./decorators/token":8,"./promised-connection":12,"./sockjs":13,"./util":14}],11:[function(require,module,exports){
 (function (global){
 'use strict';
 
@@ -999,7 +1056,7 @@ function parseMultiplexData(msg) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./debug":3,"./log":8}],11:[function(require,module,exports){
+},{"./debug":4,"./log":9}],12:[function(require,module,exports){
 "use strict";
 
 var WebSocket = require("./websocket");
@@ -1120,7 +1177,7 @@ Object.defineProperty(PromisedConnection.prototype, "extensions", {
   }
 });
 
-},{"./websocket":14}],12:[function(require,module,exports){
+},{"./websocket":15}],13:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1140,6 +1197,9 @@ exports.createFactory = function (options) {
         conn.send = function (data) {
           log("Dropping message " + data);
         };
+        conn.onmessage = function (e) {
+          log("Ignoring message " + e.data);
+        };
       },
       disconnect: function disconnect() {
         log("OK, we'll simulate a disconnection.");
@@ -1155,7 +1215,7 @@ exports.createFactory = function (options) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./log":8,"./util":13}],13:[function(require,module,exports){
+},{"./log":9,"./util":14}],14:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1306,7 +1366,7 @@ Object.defineProperty(PauseConnection.prototype, "extensions", {
 });
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"pinkyswear":20}],14:[function(require,module,exports){
+},{"pinkyswear":21}],15:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -1319,7 +1379,7 @@ var OPEN = exports.OPEN = 1;
 var CLOSING = exports.CLOSING = 2;
 var CLOSED = exports.CLOSED = 3;
 
-},{}],15:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 // http://wiki.commonjs.org/wiki/Unit_Testing/1.0
 //
 // THIS IS NOT TESTED NOR LIKELY TO WORK OUTSIDE V8!
@@ -1680,7 +1740,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":18}],16:[function(require,module,exports){
+},{"util/":19}],17:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -1773,14 +1833,14 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],17:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],18:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -2370,7 +2430,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":17,"_process":16,"inherits":19}],19:[function(require,module,exports){
+},{"./support/isBuffer":18,"_process":17,"inherits":20}],20:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -2395,7 +2455,7 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],20:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 (function (process){
 /*
  * PinkySwear.js 2.2.2 - Minimalistic implementation of the Promises/A+ spec
@@ -2516,4 +2576,4 @@ if (typeof Object.create === 'function') {
 
 
 }).call(this,require('_process'))
-},{"_process":16}]},{},[9]);
+},{"_process":17}]},{},[10]);
