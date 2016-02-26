@@ -796,8 +796,8 @@ module.exports.suppress = false;
 
 var util = require('./util');
 var token = require('./decorators/token');
-//var subapp = require('./subapp');
-//var extendsession = require('./extendsession');
+//let subapp = require('./subapp');
+//let extendsession = require('./extendsession');
 var reconnect = require('./decorators/reconnect');
 var multiplex = require('./decorators/multiplex');
 var sockjs = require("./sockjs");
@@ -836,7 +836,7 @@ SSP/RSC config:
  *
  */
 function initSession(shiny, options) {
-  var factory;
+  var factory = undefined;
 
   if (false && subapp.isSubApp()) {
     // TODO
@@ -903,7 +903,7 @@ function MultiplexClient(conn) {
 
   this._conn.onopen = function () {
     log("Connection opened. " + global.location.href);
-    var channel;
+    var channel = undefined;
     while (channel = _this._pendingChannels.shift()) {
       // Be sure to check readyState so we don't open connections for
       // channels that were closed before they finished opening
@@ -999,7 +999,7 @@ MultiplexClientChannel.prototype._open = function (parentURL) {
   debug("Open channel " + this.id);
   this.readyState = 1;
 
-  //var relURL = getRelativePath(parentURL, this.url)
+  //let relURL = getRelativePath(parentURL, this.url)
 
   this.conn.send(formatOpenEvent(this.id, this.url));
   if (this.onopen) this.onopen();
