@@ -247,7 +247,7 @@ function ConnectionContext() {
 }
 inherits(ConnectionContext, EventEmitter);
 
-},{"events":20,"inherits":24}],7:[function(require,module,exports){
+},{"events":21,"inherits":25}],7:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -286,7 +286,7 @@ exports.decorate = function (factory, options) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../multiplex-client":12}],8:[function(require,module,exports){
+},{"../multiplex-client":13}],8:[function(require,module,exports){
 "use strict";
 
 var assert = require("assert");
@@ -780,7 +780,7 @@ BufferedResendConnection.prototype.send = function (data) {
   if (!this._disconnected) this._conn.send(data);
 };
 
-},{"../../common/message-buffer":1,"../../common/message-receiver":2,"../../common/message-utils":3,"../debug":4,"../log":10,"../util":17,"../websocket":18,"./base-connection-decorator":5,"assert":19,"events":20,"inherits":24}],9:[function(require,module,exports){
+},{"../../common/message-buffer":1,"../../common/message-receiver":2,"../../common/message-utils":3,"../debug":4,"../log":11,"../util":18,"../websocket":19,"./base-connection-decorator":5,"assert":20,"events":21,"inherits":25}],9:[function(require,module,exports){
 "use strict";
 
 var util = require('../util');
@@ -817,7 +817,63 @@ if (typeof jQuery !== "undefined") {
   exports.ajax = jQuery.ajax;
 }
 
-},{"../util":17}],10:[function(require,module,exports){
+},{"../util":18}],10:[function(require,module,exports){
+(function (global){
+'use strict';
+
+var util = require('../util');
+
+// The job of this decorator is to add the worker ID
+// to the connection URL.
+//
+// In the future, this will not only read the worker
+// ID from the current URL, but also go get a new
+// worker ID if we're in a reconnect scenario.
+//
+// * Writes to ctx: nothing
+// * Reads from ctx: nothing
+exports.decorate = function (factory, options) {
+  return function (url, ctx, callback) {
+    if (!global.location) {
+      // Pass-through if we're neither in a browser
+      // nor have a mocked location
+      return factory(url, ctx, callback);
+    }
+
+    // Search for the worker ID either in the URL query string,
+    // or in the <base href> element
+
+    var search = global.location.search.replace(/^\?/, '');
+    var worker = '';
+    if (search.match(/\bw=[^&]+/)) {
+      worker = search.match(/\bw=[^&]+/)[0].substring(2);
+    }
+
+    // TODO: Dynamic workerId for reconnection case
+
+    if (!worker) {
+      // Check to see if we were assigned a base href
+      var base = jQuery('base').attr('href');
+      // Extract the worker ID if it's included in a larger URL.
+      var mtch = base.match(/_w_(\w+)\//);
+      base = mtch[1];
+      if (base) {
+        // Trim trailing slash
+        base = base.replace(/\/$/, '');
+        base = base.replace(/^_w_/, '');
+        worker = base;
+      }
+    }
+
+    if (worker) {
+      url = util.addPathParams(url, { "w": worker });
+    }
+    return factory(url, ctx, callback);
+  };
+};
+
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"../util":18}],11:[function(require,module,exports){
 "use strict";
 
 module.exports = function (msg) {
@@ -828,7 +884,7 @@ module.exports = function (msg) {
 
 module.exports.suppress = false;
 
-},{}],11:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 (function (global){
 'use strict';
 
@@ -839,6 +895,7 @@ var subapp = require('./subapp');
 //let extendsession = require('./extendsession');
 var reconnect = require('./decorators/reconnect');
 var multiplex = require('./decorators/multiplex');
+var workerId = require('./decorators/worker-id');
 var sockjs = require("./sockjs");
 var PromisedConnection = require("./promised-connection");
 var ConnectionContext = require("./decorators/connection-context");
@@ -895,6 +952,12 @@ function initSession(shiny, options, shinyServer) {
       if (options.reconnect) {
         factory = reconnect.decorate(factory, options);
       }
+      if (options.workerId) {
+        factory = workerId.decorate(factory, options);
+      }
+      if (options.token) {
+        factory = token.decorate(factory, options);
+      }
       factory = multiplex.decorate(factory);
 
       // Register the connection with Shiny.createSocket, etc.
@@ -949,7 +1012,7 @@ global.preShinyInit = function (options) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./decorators/connection-context":6,"./decorators/multiplex":7,"./decorators/reconnect":8,"./decorators/token":9,"./log":10,"./promised-connection":13,"./reconnect-ui":14,"./sockjs":15,"./subapp":16,"./util":17}],12:[function(require,module,exports){
+},{"./decorators/connection-context":6,"./decorators/multiplex":7,"./decorators/reconnect":8,"./decorators/token":9,"./decorators/worker-id":10,"./log":11,"./promised-connection":14,"./reconnect-ui":15,"./sockjs":16,"./subapp":17,"./util":18}],13:[function(require,module,exports){
 (function (global){
 'use strict';
 
@@ -1156,7 +1219,7 @@ function parseMultiplexData(msg) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./debug":4,"./log":10}],13:[function(require,module,exports){
+},{"./debug":4,"./log":11}],14:[function(require,module,exports){
 "use strict";
 
 var WebSocket = require("./websocket");
@@ -1277,7 +1340,7 @@ Object.defineProperty(PromisedConnection.prototype, "extensions", {
   }
 });
 
-},{"./websocket":18}],14:[function(require,module,exports){
+},{"./websocket":19}],15:[function(require,module,exports){
 "use strict";
 
 var EventEmitter = require("events");
@@ -1360,7 +1423,7 @@ ReconnectUI.prototype.showDisconnected = function () {
   $('#ss-overlay').addClass('ss-gray-out');
 };
 
-},{"events":20,"inherits":24}],15:[function(require,module,exports){
+},{"events":21,"inherits":25}],16:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1405,7 +1468,7 @@ exports.createFactory = function (options) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./log":10,"./util":17}],16:[function(require,module,exports){
+},{"./log":11,"./util":18}],17:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1430,7 +1493,7 @@ function createSocket() {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./log":10}],17:[function(require,module,exports){
+},{"./log":11}],18:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1598,7 +1661,7 @@ Object.defineProperty(PauseConnection.prototype, "extensions", {
 });
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"pinkyswear":25}],18:[function(require,module,exports){
+},{"pinkyswear":26}],19:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -1611,7 +1674,7 @@ var OPEN = exports.OPEN = 1;
 var CLOSING = exports.CLOSING = 2;
 var CLOSED = exports.CLOSED = 3;
 
-},{}],19:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 // http://wiki.commonjs.org/wiki/Unit_Testing/1.0
 //
 // THIS IS NOT TESTED NOR LIKELY TO WORK OUTSIDE V8!
@@ -1972,7 +2035,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":23}],20:[function(require,module,exports){
+},{"util/":24}],21:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -2272,7 +2335,7 @@ function isUndefined(arg) {
   return arg === void 0;
 }
 
-},{}],21:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -2365,14 +2428,14 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],22:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],23:[function(require,module,exports){
+},{}],24:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -2962,7 +3025,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":22,"_process":21,"inherits":24}],24:[function(require,module,exports){
+},{"./support/isBuffer":23,"_process":22,"inherits":25}],25:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -2987,7 +3050,7 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],25:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 (function (process){
 /*
  * PinkySwear.js 2.2.2 - Minimalistic implementation of the Promises/A+ spec
@@ -3108,4 +3171,4 @@ if (typeof Object.create === 'function') {
 
 
 }).call(this,require('_process'))
-},{"_process":21}]},{},[11]);
+},{"_process":22}]},{},[12]);
