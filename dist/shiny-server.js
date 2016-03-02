@@ -247,7 +247,8 @@ function ConnectionContext() {
 }
 inherits(ConnectionContext, EventEmitter);
 
-},{"events":19,"inherits":24}],7:[function(require,module,exports){
+},{"events":20,"inherits":24}],7:[function(require,module,exports){
+(function (global){
 "use strict";
 
 var MultiplexClient = require("../multiplex-client");
@@ -270,10 +271,13 @@ exports.decorate = function (factory, options) {
         return;
       }
 
+      var m = /\/([^\/]+)$/.exec(global.location.pathname);
+      var relUrl = m ? m[1] : "";
+
       try {
         var client = new MultiplexClient(conn);
         ctx.multiplexClient = client;
-        callback(null, client.open(""));
+        callback(null, client.open(relUrl));
       } catch (e) {
         callback(e);
       }
@@ -281,6 +285,7 @@ exports.decorate = function (factory, options) {
   };
 };
 
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"../multiplex-client":12}],8:[function(require,module,exports){
 "use strict";
 
@@ -775,7 +780,7 @@ BufferedResendConnection.prototype.send = function (data) {
   if (!this._disconnected) this._conn.send(data);
 };
 
-},{"../../common/message-buffer":1,"../../common/message-receiver":2,"../../common/message-utils":3,"../debug":4,"../log":10,"../util":16,"../websocket":17,"./base-connection-decorator":5,"assert":18,"events":19,"inherits":24}],9:[function(require,module,exports){
+},{"../../common/message-buffer":1,"../../common/message-receiver":2,"../../common/message-utils":3,"../debug":4,"../log":10,"../util":17,"../websocket":18,"./base-connection-decorator":5,"assert":19,"events":20,"inherits":24}],9:[function(require,module,exports){
 "use strict";
 
 var util = require('../util');
@@ -812,7 +817,7 @@ if (typeof jQuery !== "undefined") {
   exports.ajax = jQuery.ajax;
 }
 
-},{"../util":16}],10:[function(require,module,exports){
+},{"../util":17}],10:[function(require,module,exports){
 "use strict";
 
 module.exports = function (msg) {
@@ -830,7 +835,7 @@ module.exports.suppress = false;
 var log = require("./log");
 var util = require('./util');
 var token = require('./decorators/token');
-//let subapp = require('./subapp');
+var subapp = require('./subapp');
 //let extendsession = require('./extendsession');
 var reconnect = require('./decorators/reconnect');
 var multiplex = require('./decorators/multiplex');
@@ -873,71 +878,78 @@ var reconnectUI = new ReconnectUI();
  * }
  *
  */
-function initSession(shiny, options) {
-  var factory = undefined;
+function initSession(shiny, options, shinyServer) {
 
-  if (false && subapp.isSubApp()) {
-    // TODO
+  if (subapp.isSubApp()) {
+    shiny.createSocket = function (_) {
+      return subapp.createSocket();
+    };
   } else {
+    (function () {
       // Not a subapp
       // if (options.extendsession) {
       //   extendsession.init();
       // }
 
-      factory = sockjs.createFactory(options);
+      var factory = sockjs.createFactory(options);
       if (options.reconnect) {
         factory = reconnect.decorate(factory, options);
       }
       factory = multiplex.decorate(factory);
-    }
 
-  // Register the connection with Shiny.createSocket, etc.
-  shiny.createSocket = function () {
-    var url = location.protocol + "//" + location.host + location.pathname.replace(/\\$/, "");
-    url += "/__sockjs__/";
+      // Register the connection with Shiny.createSocket, etc.
+      shiny.createSocket = function (_) {
+        var url = location.protocol + "//" + location.host + location.pathname.replace(/\/[^\/]+$/, "");
+        url += "/__sockjs__/";
 
-    reconnectUI.hide();
+        reconnectUI.hide();
 
-    var doReconnectHandler = function doReconnectHandler(_) {
-      ctx.emit("do-reconnect");
-    };
+        var doReconnectHandler = function doReconnectHandler(_) {
+          ctx.emit("do-reconnect");
+        };
 
-    reconnectUI.on("do-reconnect", doReconnectHandler);
-    if (reconnectUI.listenerCount("do-reconnect") > 1) {
-      log("do-reconnect handlers are leaking!");
-    }
+        reconnectUI.on("do-reconnect", doReconnectHandler);
+        if (reconnectUI.listenerCount("do-reconnect") > 1) {
+          log("do-reconnect handlers are leaking!");
+        }
 
-    var ctx = new ConnectionContext();
-    ctx.on("reconnect-schedule", function (delay) {
-      reconnectUI.showCountdown(delay);
-    });
-    ctx.on("reconnect-attempt", function (_) {
-      reconnectUI.showAttempting();
-    });
-    ctx.on("reconnect-success", function (_) {
-      reconnectUI.hide();
-    });
+        var ctx = new ConnectionContext();
+        ctx.on("reconnect-schedule", function (delay) {
+          reconnectUI.showCountdown(delay);
+        });
+        ctx.on("reconnect-attempt", function (_) {
+          reconnectUI.showAttempting();
+        });
+        ctx.on("reconnect-success", function (_) {
+          reconnectUI.hide();
+        });
 
-    var onDisconnected = function onDisconnected(_) {
-      reconnectUI.removeListener("do-reconnect", doReconnectHandler);
-      reconnectUI.showDisconnected();
-    };
-    ctx.on("reconnect-failure", onDisconnected);
-    ctx.on("disconnect", onDisconnected);
+        var onDisconnected = function onDisconnected(_) {
+          reconnectUI.removeListener("do-reconnect", doReconnectHandler);
+          reconnectUI.showDisconnected();
+        };
+        ctx.on("reconnect-failure", onDisconnected);
+        ctx.on("disconnect", onDisconnected);
 
-    var pc = new PromisedConnection();
+        var pc = new PromisedConnection();
 
-    factory(url, ctx, pc.resolve.bind(pc));
-    return pc;
-  };
+        factory(url, ctx, pc.resolve.bind(pc));
+
+        shinyServer.multiplexer = ctx.multiplexClient;
+
+        return pc;
+      };
+    })();
+  }
 }
 
 global.preShinyInit = function (options) {
-  initSession(global.Shiny, options);
+  global.ShinyServer = global.ShinyServer || {};
+  initSession(global.Shiny, options, global.ShinyServer);
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./decorators/connection-context":6,"./decorators/multiplex":7,"./decorators/reconnect":8,"./decorators/token":9,"./log":10,"./promised-connection":13,"./reconnect-ui":14,"./sockjs":15,"./util":16}],12:[function(require,module,exports){
+},{"./decorators/connection-context":6,"./decorators/multiplex":7,"./decorators/reconnect":8,"./decorators/token":9,"./log":10,"./promised-connection":13,"./reconnect-ui":14,"./sockjs":15,"./subapp":16,"./util":17}],12:[function(require,module,exports){
 (function (global){
 'use strict';
 
@@ -1265,7 +1277,7 @@ Object.defineProperty(PromisedConnection.prototype, "extensions", {
   }
 });
 
-},{"./websocket":17}],14:[function(require,module,exports){
+},{"./websocket":18}],14:[function(require,module,exports){
 "use strict";
 
 var EventEmitter = require("events");
@@ -1348,7 +1360,7 @@ ReconnectUI.prototype.showDisconnected = function () {
   $('#ss-overlay').addClass('ss-gray-out');
 };
 
-},{"events":19,"inherits":24}],15:[function(require,module,exports){
+},{"events":20,"inherits":24}],15:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1393,7 +1405,32 @@ exports.createFactory = function (options) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./log":10,"./util":16}],16:[function(require,module,exports){
+},{"./log":10,"./util":17}],16:[function(require,module,exports){
+(function (global){
+"use strict";
+
+var log = require("./log");
+
+exports.isSubApp = isSubApp;
+function isSubApp() {
+  var subApp = global.location.search.match(/\?.*__subapp__=(\d)/);
+  return subApp && subApp[1]; //is truthy
+}
+
+exports.createSocket = createSocket;
+function createSocket() {
+  if (!window.parent || !window.parent.ShinyServer || !window.parent.ShinyServer.multiplexer) {
+    throw new Error("Multiplexer not found in parent");
+  }
+
+  var relURL = window.frameElement.getAttribute("src");
+  // Add /__sockjs__/ to the end of the path
+  relURL = relURL.replace(/\/?(\?|$)/, "/__sockjs__/$1");
+  return window.parent.ShinyServer.multiplexer.open(relURL);
+}
+
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"./log":10}],17:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1561,7 +1598,7 @@ Object.defineProperty(PauseConnection.prototype, "extensions", {
 });
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"pinkyswear":25}],17:[function(require,module,exports){
+},{"pinkyswear":25}],18:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -1574,7 +1611,7 @@ var OPEN = exports.OPEN = 1;
 var CLOSING = exports.CLOSING = 2;
 var CLOSED = exports.CLOSED = 3;
 
-},{}],18:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 // http://wiki.commonjs.org/wiki/Unit_Testing/1.0
 //
 // THIS IS NOT TESTED NOR LIKELY TO WORK OUTSIDE V8!
@@ -1935,7 +1972,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":23}],19:[function(require,module,exports){
+},{"util/":23}],20:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -2233,31 +2270,6 @@ function isObject(arg) {
 
 function isUndefined(arg) {
   return arg === void 0;
-}
-
-},{}],20:[function(require,module,exports){
-if (typeof Object.create === 'function') {
-  // implementation from standard node.js 'util' module
-  module.exports = function inherits(ctor, superCtor) {
-    ctor.super_ = superCtor
-    ctor.prototype = Object.create(superCtor.prototype, {
-      constructor: {
-        value: ctor,
-        enumerable: false,
-        writable: true,
-        configurable: true
-      }
-    });
-  };
-} else {
-  // old school shim for old browsers
-  module.exports = function inherits(ctor, superCtor) {
-    ctor.super_ = superCtor
-    var TempCtor = function () {}
-    TempCtor.prototype = superCtor.prototype
-    ctor.prototype = new TempCtor()
-    ctor.prototype.constructor = ctor
-  }
 }
 
 },{}],21:[function(require,module,exports){
@@ -2950,9 +2962,32 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":22,"_process":21,"inherits":20}],24:[function(require,module,exports){
-arguments[4][20][0].apply(exports,arguments)
-},{"dup":20}],25:[function(require,module,exports){
+},{"./support/isBuffer":22,"_process":21,"inherits":24}],24:[function(require,module,exports){
+if (typeof Object.create === 'function') {
+  // implementation from standard node.js 'util' module
+  module.exports = function inherits(ctor, superCtor) {
+    ctor.super_ = superCtor
+    ctor.prototype = Object.create(superCtor.prototype, {
+      constructor: {
+        value: ctor,
+        enumerable: false,
+        writable: true,
+        configurable: true
+      }
+    });
+  };
+} else {
+  // old school shim for old browsers
+  module.exports = function inherits(ctor, superCtor) {
+    ctor.super_ = superCtor
+    var TempCtor = function () {}
+    TempCtor.prototype = superCtor.prototype
+    ctor.prototype = new TempCtor()
+    ctor.prototype.constructor = ctor
+  }
+}
+
+},{}],25:[function(require,module,exports){
 (function (process){
 /*
  * PinkySwear.js 2.2.2 - Minimalistic implementation of the Promises/A+ spec
