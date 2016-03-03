@@ -247,11 +247,14 @@ function ConnectionContext() {
 }
 inherits(ConnectionContext, EventEmitter);
 
-},{"events":21,"inherits":25}],7:[function(require,module,exports){
+},{"events":21,"inherits":26}],7:[function(require,module,exports){
 (function (global){
 "use strict";
 
 var MultiplexClient = require("../multiplex-client");
+
+var util = require("../util");
+var PromisedConnection = require("../promised-connection");
 
 // The job of this decorator is to wrap the underlying
 // connection with our Multiplexing protocol, designed
@@ -265,6 +268,22 @@ var MultiplexClient = require("../multiplex-client");
 // * Reads from ctx: nothing
 exports.decorate = function (factory, options) {
   return function (url, ctx, callback) {
+
+    var multiplexClientPromise = util.promise();
+
+    ctx.multiplexClient = {
+      open: function open(url) {
+        var pc = new PromisedConnection();
+        multiplexClientPromise.then(function (client) {
+          pc.resolve(null, client.open(url));
+        }).then(null, function (err) {
+          pc.resolve(err);
+        });
+
+        return pc;
+      }
+    };
+
     return factory(url, ctx, function (err, conn) {
       if (err) {
         callback(err);
@@ -276,17 +295,25 @@ exports.decorate = function (factory, options) {
 
       try {
         var client = new MultiplexClient(conn);
-        ctx.multiplexClient = client;
         callback(null, client.open(relUrl));
+        multiplexClientPromise(true, [client]);
       } catch (e) {
+        multiplexClientPromise(false, [e]);
         callback(e);
       }
     });
   };
 };
 
+exports.decorate2 = function (factory, options) {
+  return function (url, ctx, callback) {
+    url = util.addPathParams(url, { s: 0 });
+    return factory(url, ctx, callback);
+  };
+};
+
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../multiplex-client":13}],8:[function(require,module,exports){
+},{"../multiplex-client":13,"../promised-connection":14,"../util":18}],8:[function(require,module,exports){
 "use strict";
 
 var assert = require("assert");
@@ -780,7 +807,7 @@ BufferedResendConnection.prototype.send = function (data) {
   if (!this._disconnected) this._conn.send(data);
 };
 
-},{"../../common/message-buffer":1,"../../common/message-receiver":2,"../../common/message-utils":3,"../debug":4,"../log":11,"../util":18,"../websocket":19,"./base-connection-decorator":5,"assert":20,"events":21,"inherits":25}],9:[function(require,module,exports){
+},{"../../common/message-buffer":1,"../../common/message-receiver":2,"../../common/message-utils":3,"../debug":4,"../log":11,"../util":18,"../websocket":19,"./base-connection-decorator":5,"assert":20,"events":21,"inherits":26}],9:[function(require,module,exports){
 "use strict";
 
 var util = require('../util');
@@ -949,20 +976,21 @@ function initSession(shiny, options, shinyServer) {
       // }
 
       var factory = sockjs.createFactory(options);
-      if (options.reconnect) {
-        factory = reconnect.decorate(factory, options);
-      }
+      factory = multiplex.decorate2(factory);
       if (options.workerId) {
         factory = workerId.decorate(factory, options);
       }
       if (options.token) {
         factory = token.decorate(factory, options);
       }
+      if (options.reconnect) {
+        factory = reconnect.decorate(factory, options);
+      }
       factory = multiplex.decorate(factory);
 
       // Register the connection with Shiny.createSocket, etc.
       shiny.createSocket = function (_) {
-        var url = location.protocol + "//" + location.host + location.pathname.replace(/\/[^\/]+$/, "");
+        var url = location.protocol + "//" + location.host + location.pathname.replace(/\/[^\/]*$/, "");
         url += "/__sockjs__/";
 
         reconnectUI.hide();
@@ -1423,7 +1451,7 @@ ReconnectUI.prototype.showDisconnected = function () {
   $('#ss-overlay').addClass('ss-gray-out');
 };
 
-},{"events":21,"inherits":25}],16:[function(require,module,exports){
+},{"events":21,"inherits":26}],16:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1661,7 +1689,7 @@ Object.defineProperty(PauseConnection.prototype, "extensions", {
 });
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"pinkyswear":26}],19:[function(require,module,exports){
+},{"pinkyswear":27}],19:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -2035,7 +2063,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":24}],21:[function(require,module,exports){
+},{"util/":25}],21:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -2336,6 +2364,31 @@ function isUndefined(arg) {
 }
 
 },{}],22:[function(require,module,exports){
+if (typeof Object.create === 'function') {
+  // implementation from standard node.js 'util' module
+  module.exports = function inherits(ctor, superCtor) {
+    ctor.super_ = superCtor
+    ctor.prototype = Object.create(superCtor.prototype, {
+      constructor: {
+        value: ctor,
+        enumerable: false,
+        writable: true,
+        configurable: true
+      }
+    });
+  };
+} else {
+  // old school shim for old browsers
+  module.exports = function inherits(ctor, superCtor) {
+    ctor.super_ = superCtor
+    var TempCtor = function () {}
+    TempCtor.prototype = superCtor.prototype
+    ctor.prototype = new TempCtor()
+    ctor.prototype.constructor = ctor
+  }
+}
+
+},{}],23:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -2428,14 +2481,14 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],23:[function(require,module,exports){
+},{}],24:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],24:[function(require,module,exports){
+},{}],25:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -3025,32 +3078,9 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":23,"_process":22,"inherits":25}],25:[function(require,module,exports){
-if (typeof Object.create === 'function') {
-  // implementation from standard node.js 'util' module
-  module.exports = function inherits(ctor, superCtor) {
-    ctor.super_ = superCtor
-    ctor.prototype = Object.create(superCtor.prototype, {
-      constructor: {
-        value: ctor,
-        enumerable: false,
-        writable: true,
-        configurable: true
-      }
-    });
-  };
-} else {
-  // old school shim for old browsers
-  module.exports = function inherits(ctor, superCtor) {
-    ctor.super_ = superCtor
-    var TempCtor = function () {}
-    TempCtor.prototype = superCtor.prototype
-    ctor.prototype = new TempCtor()
-    ctor.prototype.constructor = ctor
-  }
-}
-
-},{}],26:[function(require,module,exports){
+},{"./support/isBuffer":24,"_process":23,"inherits":22}],26:[function(require,module,exports){
+arguments[4][22][0].apply(exports,arguments)
+},{"dup":22}],27:[function(require,module,exports){
 (function (process){
 /*
  * PinkySwear.js 2.2.2 - Minimalistic implementation of the Promises/A+ spec
@@ -3171,4 +3201,4 @@ if (typeof Object.create === 'function') {
 
 
 }).call(this,require('_process'))
-},{"_process":22}]},{},[12]);
+},{"_process":23}]},{},[12]);
