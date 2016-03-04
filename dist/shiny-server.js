@@ -163,6 +163,113 @@ exports.parseACK = function (val) {
 },{}],4:[function(require,module,exports){
 "use strict";
 
+var assert = require("assert");
+
+exports.addPathParams = function (url, params) {
+  var pathFragment = "";
+  for (var key in params) {
+    if (params.hasOwnProperty(key)) {
+      if (!/^\w*$/.test(key) || !/^\w*$/.test(params[key])) {
+        throw new Error("util.addPathParams doesn't implement escaping");
+      }
+      pathFragment += "/" + key + "=" + params[key];
+    }
+  }
+  return url.replace(/\/?(\?|$)/, pathFragment + "$1");
+};
+
+function parseUrl(url) {
+  var urlParts = /^([^?]*)(\?.*)?$/.exec(url);
+  assert(urlParts);
+
+  // Could be full URL, absolute path, or relative path
+  var mainUrl = urlParts[1];
+  var search = urlParts[2] || ""; // Could be nothing
+
+  var chunks = mainUrl.split(/\//);
+
+  // Find first chunk that's either "" or "name=value"
+  var firstParamIndex = chunks.length;
+  var lastParamIndex;
+  var seenParam = false; // Have we encountered any param yet?
+  while (firstParamIndex > 0) {
+    var prevChunk = chunks[firstParamIndex - 1];
+    if (/^[a-z]+=/i.test(prevChunk)) {
+      if (!lastParamIndex) lastParamIndex = firstParamIndex;
+      seenParam = true;
+      firstParamIndex--;
+    } else if (!seenParam) {
+      firstParamIndex--;
+    } else {
+      break;
+    }
+  }
+
+  // No params detected
+  if (!seenParam) {
+    return {
+      prefix: chunks,
+      params: [],
+      suffix: [],
+      search: search
+    };
+  }
+
+  assert(firstParamIndex >= 0 && firstParamIndex <= chunks.length);
+  assert(lastParamIndex >= 0 && firstParamIndex <= chunks.length);
+
+  return {
+    prefix: chunks.slice(0, firstParamIndex),
+    params: chunks.slice(firstParamIndex, lastParamIndex),
+    suffix: chunks.slice(lastParamIndex),
+    search: search
+  };
+}
+
+function formatUrl(urlObj) {
+  var url = [].concat(urlObj.prefix).concat(urlObj.params).concat(urlObj.suffix).join("/");
+  return url + urlObj.search;
+}
+
+exports.reorderPathParams = function (url, order) {
+  var urlObj = parseUrl(url);
+
+  // Filter out empty chunks
+  var params = urlObj.params.filter(function (v) {
+    return v.length > 0;
+  });
+
+  // Now actually reorder the chunks
+  var frontParams = [];
+  for (var i = 0; i < params.length; i++) {
+    var m = /^(.+)=(.*)$/.exec(params[i]);
+    assert(m);
+    var desiredOrder = order.indexOf(m[1]);
+    if (desiredOrder >= 0) {
+      frontParams[desiredOrder] = params[i];
+      delete params[i];
+    }
+  }
+  urlObj.params = frontParams.concat(params).filter(function (v) {
+    return typeof v !== "undefined";
+  });
+
+  return formatUrl(urlObj);
+};
+
+exports.extractParams = function (url) {
+  var urlObj = parseUrl(url);
+  var result = {};
+  for (var i = 0; i < urlObj.params.length; i++) {
+    var m = /^(.+)=(.*)$/.exec(urlObj.params[i]);
+    result[m[1]] = m[2];
+  }
+  return result;
+};
+
+},{"assert":21}],5:[function(require,module,exports){
+"use strict";
+
 module.exports = function (msg) {
   if (typeof console !== "undefined" && !module.exports.suppress) {
     console.log(new Date() + " [DBG]: " + msg);
@@ -171,7 +278,7 @@ module.exports = function (msg) {
 
 module.exports.suppress = false;
 
-},{}],5:[function(require,module,exports){
+},{}],6:[function(require,module,exports){
 "use strict";
 
 module.exports = BaseConnectionDecorator;
@@ -234,20 +341,22 @@ Object.defineProperty(BaseConnectionDecorator.prototype, "extensions", {
   }
 });
 
-},{}],6:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
 "use strict";
 
-var EventEmitter = require("events");
+var EventEmitter = require("events").EventEmitter;
 var inherits = require("inherits");
 
 module.exports = ConnectionContext;
 
 function ConnectionContext() {
   EventEmitter.call(this);
+
+  this.params = {};
 }
 inherits(ConnectionContext, EventEmitter);
 
-},{"events":21,"inherits":26}],7:[function(require,module,exports){
+},{"events":22,"inherits":26}],8:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -255,6 +364,7 @@ var MultiplexClient = require("../multiplex-client");
 
 var util = require("../util");
 var PromisedConnection = require("../promised-connection");
+var pathParams = require("../../common/path-params");
 
 // The job of this decorator is to wrap the underlying
 // connection with our Multiplexing protocol, designed
@@ -265,17 +375,28 @@ var PromisedConnection = require("../promised-connection");
 // webpage/frame.
 //
 // * Writes to ctx: multiplexClient (MultiplexClient)
-// * Reads from ctx: nothing
+// * Reads from ctx: params
 exports.decorate = function (factory, options) {
   return function (url, ctx, callback) {
 
     var multiplexClientPromise = util.promise();
 
+    url = pathParams.addPathParams(url, { s: 0 });
+    ctx.params.s = 0;
+
     ctx.multiplexClient = {
       open: function open(url) {
         var pc = new PromisedConnection();
         multiplexClientPromise.then(function (client) {
-          pc.resolve(null, client.open(url));
+          // Clone ctx.params so we don't alter the original
+          var params = JSON.parse(JSON.stringify(ctx.params));
+          // Change s=0 to s=1
+          if (typeof params.s !== "undefined") params.s = "1";
+
+          var urlWithParams = pathParams.addPathParams(url, params);
+          urlWithParams = pathParams.reorderPathParams(urlWithParams, ["n", "o", "t", "w", "s"]);
+
+          pc.resolve(null, client.open(urlWithParams));
         }).then(null, function (err) {
           pc.resolve(err);
         });
@@ -292,6 +413,10 @@ exports.decorate = function (factory, options) {
 
       var m = /\/([^\/]+)$/.exec(global.location.pathname);
       var relUrl = m ? m[1] : "";
+      // if (relUrl !== "") {
+      //   relUrl = pathParams.addPathParams(relUrl, ctx.params);
+      //   relUrl = pathParams.reorderPathParams(relUrl, ["n", "o", "t", "w", "s"]);
+      // }
 
       try {
         var client = new MultiplexClient(conn);
@@ -305,19 +430,12 @@ exports.decorate = function (factory, options) {
   };
 };
 
-exports.decorate2 = function (factory, options) {
-  return function (url, ctx, callback) {
-    url = util.addPathParams(url, { s: 0 });
-    return factory(url, ctx, callback);
-  };
-};
-
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../multiplex-client":13,"../promised-connection":14,"../util":18}],8:[function(require,module,exports){
+},{"../../common/path-params":4,"../multiplex-client":14,"../promised-connection":15,"../util":19}],9:[function(require,module,exports){
 "use strict";
 
 var assert = require("assert");
-var EventEmitter = require("events");
+var EventEmitter = require("events").EventEmitter;
 
 var inherits = require("inherits");
 
@@ -330,6 +448,7 @@ var BaseConnectionDecorator = require("./base-connection-decorator");
 var MessageBuffer = require("../../common/message-buffer");
 var MessageReceiver = require("../../common/message-receiver");
 var message_utils = require("../../common/message-utils");
+var pathParams = require("../../common/path-params");
 
 function generateId(size) {
   var chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -346,7 +465,7 @@ function generateId(size) {
 // connection, and restore the connection.
 //
 // * Reads from options: reconnectTimeout (in millis; <0 to disable)
-// * Writes to ctx: nothing
+// * Writes to ctx: params.n or params.o
 // * Reads from ctx: nothing
 exports.decorate = function (factory, options) {
   // Returns a connection promise
@@ -518,7 +637,8 @@ RobustConnection.prototype._connect = function (timeoutMillis) {
   var open_p = function open_p() {
     var params = {};
     params[_this.readyState === WebSocket.CONNECTING ? "n" : "o"] = _this._robustId;
-    var url = util.addPathParams(_this._url, params);
+    _this._ctx.params[_this.readyState === WebSocket.CONNECTING ? "n" : "o"] = _this._robustId;
+    var url = pathParams.addPathParams(_this._url, params);
 
     var promise = util.promise();
     _this._factory(url, _this._ctx, function (err, conn) {
@@ -807,10 +927,11 @@ BufferedResendConnection.prototype.send = function (data) {
   if (!this._disconnected) this._conn.send(data);
 };
 
-},{"../../common/message-buffer":1,"../../common/message-receiver":2,"../../common/message-utils":3,"../debug":4,"../log":11,"../util":18,"../websocket":19,"./base-connection-decorator":5,"assert":20,"events":21,"inherits":26}],9:[function(require,module,exports){
+},{"../../common/message-buffer":1,"../../common/message-receiver":2,"../../common/message-utils":3,"../../common/path-params":4,"../debug":5,"../log":12,"../util":19,"../websocket":20,"./base-connection-decorator":6,"assert":21,"events":22,"inherits":26}],10:[function(require,module,exports){
 "use strict";
 
 var util = require('../util');
+var pathParams = require("../../common/path-params");
 
 // The job of this decorator is to request a token from
 // the server, and append that to the URL.
@@ -828,11 +949,12 @@ exports.decorate = function (factory, options) {
       cache: false,
       dataType: "text",
       success: function success(data, textStatus) {
-        var newUrl = util.addPathParams(url, { "t": data });
+        var newUrl = pathParams.addPathParams(url, { "t": data });
+        ctx.params.t = data;
         factory(newUrl, ctx, callback);
       },
       error: function error(jqXHR, textStatus, errorThrown) {
-        callback(errorThrown);
+        callback(new Error("Failed to retrieve token: " + errorThrown));
       }
     });
   };
@@ -844,11 +966,12 @@ if (typeof jQuery !== "undefined") {
   exports.ajax = jQuery.ajax;
 }
 
-},{"../util":18}],10:[function(require,module,exports){
+},{"../../common/path-params":4,"../util":19}],11:[function(require,module,exports){
 (function (global){
 'use strict';
 
 var util = require('../util');
+var pathParams = require("../../common/path-params");
 
 // The job of this decorator is to add the worker ID
 // to the connection URL.
@@ -893,14 +1016,15 @@ exports.decorate = function (factory, options) {
     }
 
     if (worker) {
-      url = util.addPathParams(url, { "w": worker });
+      url = pathParams.addPathParams(url, { "w": worker });
+      ctx.params.w = worker;
     }
     return factory(url, ctx, callback);
   };
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../util":18}],11:[function(require,module,exports){
+},{"../../common/path-params":4,"../util":19}],12:[function(require,module,exports){
 "use strict";
 
 module.exports = function (msg) {
@@ -911,10 +1035,11 @@ module.exports = function (msg) {
 
 module.exports.suppress = false;
 
-},{}],12:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 (function (global){
-'use strict';
+"use strict";
 
+var assert = require("assert");
 var log = require("./log");
 var util = require('./util');
 var token = require('./decorators/token');
@@ -976,7 +1101,6 @@ function initSession(shiny, options, shinyServer) {
       // }
 
       var factory = sockjs.createFactory(options);
-      factory = multiplex.decorate2(factory);
       if (options.workerId) {
         factory = workerId.decorate(factory, options);
       }
@@ -1024,8 +1148,11 @@ function initSession(shiny, options, shinyServer) {
 
         var pc = new PromisedConnection();
 
-        factory(url, ctx, pc.resolve.bind(pc));
+        factory(url, ctx, function (err, conn) {
+          pc.resolve(err, conn);
+        });
 
+        assert(ctx.multiplexClient);
         shinyServer.multiplexer = ctx.multiplexClient;
 
         return pc;
@@ -1040,7 +1167,7 @@ global.preShinyInit = function (options) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./decorators/connection-context":6,"./decorators/multiplex":7,"./decorators/reconnect":8,"./decorators/token":9,"./decorators/worker-id":10,"./log":11,"./promised-connection":14,"./reconnect-ui":15,"./sockjs":16,"./subapp":17,"./util":18}],13:[function(require,module,exports){
+},{"./decorators/connection-context":7,"./decorators/multiplex":8,"./decorators/reconnect":9,"./decorators/token":10,"./decorators/worker-id":11,"./log":12,"./promised-connection":15,"./reconnect-ui":16,"./sockjs":17,"./subapp":18,"./util":19,"assert":21}],14:[function(require,module,exports){
 (function (global){
 'use strict';
 
@@ -1247,7 +1374,7 @@ function parseMultiplexData(msg) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./debug":4,"./log":11}],14:[function(require,module,exports){
+},{"./debug":5,"./log":12}],15:[function(require,module,exports){
 "use strict";
 
 var WebSocket = require("./websocket");
@@ -1272,16 +1399,16 @@ PromisedConnection.prototype.resolve = function (err, conn) {
     this._conn.close.apply(this._conn, this._closed);
   } else {
     this._conn.onclose = function (evt) {
-      _this.onclose(evt);
+      if (_this.onclose) _this.onclose(evt);
     };
     this._conn.onopen = function (evt) {
-      _this.onopen(evt);
+      if (_this.onopen) _this.onopen(evt);
     };
     this._conn.onmessage = function (evt) {
-      _this.onmessage(evt);
+      if (_this.onmessage) _this.onmessage(evt);
     };
     this._conn.onerror = function (evt) {
-      _this.onerror(evt);
+      if (_this.onerror) _this.onerror(evt);
     };
   }
 };
@@ -1368,10 +1495,10 @@ Object.defineProperty(PromisedConnection.prototype, "extensions", {
   }
 });
 
-},{"./websocket":19}],15:[function(require,module,exports){
+},{"./websocket":20}],16:[function(require,module,exports){
 "use strict";
 
-var EventEmitter = require("events");
+var EventEmitter = require("events").EventEmitter;
 var inherits = require("inherits");
 
 module.exports = ReconnectUI;
@@ -1451,13 +1578,14 @@ ReconnectUI.prototype.showDisconnected = function () {
   $('#ss-overlay').addClass('ss-gray-out');
 };
 
-},{"events":21,"inherits":26}],16:[function(require,module,exports){
+},{"events":22,"inherits":26}],17:[function(require,module,exports){
 (function (global){
 "use strict";
 
 var util = require("./util");
 
 var log = require("./log");
+var pathParams = require("../common/path-params");
 
 var disabled = false;
 var currConn = null;
@@ -1488,6 +1616,8 @@ exports.createFactory = function (options) {
   return function (url, context, callback) {
     if (!callback) throw new Error("callback is required");
 
+    url = pathParams.reorderPathParams(url, ["n", "o", "t", "w", "s"]);
+
     var conn = new SockJS(url, null, options);
     currConn = conn;
 
@@ -1496,7 +1626,7 @@ exports.createFactory = function (options) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./log":11,"./util":18}],17:[function(require,module,exports){
+},{"../common/path-params":4,"./log":12,"./util":19}],18:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1521,24 +1651,12 @@ function createSocket() {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./log":11}],18:[function(require,module,exports){
+},{"./log":12}],19:[function(require,module,exports){
 (function (global){
 "use strict";
 
+var assert = require("assert");
 var pinkySwear = require("pinkyswear");
-
-exports.addPathParams = function (url, params) {
-  var pathFragment = "";
-  for (var key in params) {
-    if (params.hasOwnProperty(key)) {
-      if (!/^\w*$/.test(key) || !/^\w*$/.test(params[key])) {
-        throw new Error("util.addPathParams doesn't implement escaping");
-      }
-      pathFragment += "/" + key + "=" + params[key];
-    }
-  }
-  return url.replace(/\/?(\?|$)/, pathFragment + "$1");
-};
 
 exports.createNiceBackoffDelayFunc = function () {
   // delays, in seconds; recycle the last value as needed
@@ -1689,7 +1807,7 @@ Object.defineProperty(PauseConnection.prototype, "extensions", {
 });
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"pinkyswear":27}],19:[function(require,module,exports){
+},{"assert":21,"pinkyswear":27}],20:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -1702,7 +1820,7 @@ var OPEN = exports.OPEN = 1;
 var CLOSING = exports.CLOSING = 2;
 var CLOSED = exports.CLOSED = 3;
 
-},{}],20:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 // http://wiki.commonjs.org/wiki/Unit_Testing/1.0
 //
 // THIS IS NOT TESTED NOR LIKELY TO WORK OUTSIDE V8!
@@ -2063,7 +2181,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":25}],21:[function(require,module,exports){
+},{"util/":25}],22:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -2361,31 +2479,6 @@ function isObject(arg) {
 
 function isUndefined(arg) {
   return arg === void 0;
-}
-
-},{}],22:[function(require,module,exports){
-if (typeof Object.create === 'function') {
-  // implementation from standard node.js 'util' module
-  module.exports = function inherits(ctor, superCtor) {
-    ctor.super_ = superCtor
-    ctor.prototype = Object.create(superCtor.prototype, {
-      constructor: {
-        value: ctor,
-        enumerable: false,
-        writable: true,
-        configurable: true
-      }
-    });
-  };
-} else {
-  // old school shim for old browsers
-  module.exports = function inherits(ctor, superCtor) {
-    ctor.super_ = superCtor
-    var TempCtor = function () {}
-    TempCtor.prototype = superCtor.prototype
-    ctor.prototype = new TempCtor()
-    ctor.prototype.constructor = ctor
-  }
 }
 
 },{}],23:[function(require,module,exports){
@@ -3078,9 +3171,32 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":24,"_process":23,"inherits":22}],26:[function(require,module,exports){
-arguments[4][22][0].apply(exports,arguments)
-},{"dup":22}],27:[function(require,module,exports){
+},{"./support/isBuffer":24,"_process":23,"inherits":26}],26:[function(require,module,exports){
+if (typeof Object.create === 'function') {
+  // implementation from standard node.js 'util' module
+  module.exports = function inherits(ctor, superCtor) {
+    ctor.super_ = superCtor
+    ctor.prototype = Object.create(superCtor.prototype, {
+      constructor: {
+        value: ctor,
+        enumerable: false,
+        writable: true,
+        configurable: true
+      }
+    });
+  };
+} else {
+  // old school shim for old browsers
+  module.exports = function inherits(ctor, superCtor) {
+    ctor.super_ = superCtor
+    var TempCtor = function () {}
+    TempCtor.prototype = superCtor.prototype
+    ctor.prototype = new TempCtor()
+    ctor.prototype.constructor = ctor
+  }
+}
+
+},{}],27:[function(require,module,exports){
 (function (process){
 /*
  * PinkySwear.js 2.2.2 - Minimalistic implementation of the Promises/A+ spec
@@ -3201,4 +3317,4 @@ arguments[4][22][0].apply(exports,arguments)
 
 
 }).call(this,require('_process'))
-},{"_process":23}]},{},[12]);
+},{"_process":23}]},{},[13]);
