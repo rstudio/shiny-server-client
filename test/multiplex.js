@@ -25,7 +25,7 @@ after(function() {
 
 describe("Multiplex decorator", function() {
   var fm = common.createConnFactoryMock(false);
-  var factory = multiplex.decorate(fm.factory);
+  var factory = multiplex.decorate(fm.factory, {});
 
   it("adds expected info to ctx", function(done) {
     var ctx = new ConnectionContext();
@@ -34,7 +34,7 @@ describe("Multiplex decorator", function() {
         throw err;
       }
 
-      assert.equal(fm.getConn().url, "/foo/bar/s=0");
+      assert.equal(fm.getConn().url, "/foo/bar");
       assert.equal(typeof(ctx.multiplexClient.open), "function");
       done();
     });

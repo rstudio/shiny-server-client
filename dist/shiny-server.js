@@ -381,21 +381,16 @@ exports.decorate = function (factory, options) {
 
     var multiplexClientPromise = util.promise();
 
-    url = pathParams.addPathParams(url, { s: 0 });
+    if (options.subappTag) {
+      url = pathParams.addPathParams(url, { s: 0 });
+    }
     ctx.params.s = 0;
 
     ctx.multiplexClient = {
       open: function open(url) {
         var pc = new PromisedConnection();
         multiplexClientPromise.then(function (client) {
-          // Clone ctx.params so we don't alter the original
-          var params = JSON.parse(JSON.stringify(ctx.params));
-          // Change s=0 to s=1
-          if (typeof params.s !== "undefined") params.s = "1";
-
-          var urlWithParams = pathParams.addPathParams(url, params);
-          urlWithParams = pathParams.reorderPathParams(urlWithParams, ["n", "o", "t", "w", "s"]);
-
+          var urlWithParams = pathParams.addPathParams(url, { s: 1 });
           pc.resolve(null, client.open(urlWithParams));
         }).then(null, function (err) {
           pc.resolve(err);
@@ -413,10 +408,6 @@ exports.decorate = function (factory, options) {
 
       var m = /\/([^\/]+)$/.exec(global.location.pathname);
       var relUrl = m ? m[1] : "";
-      // if (relUrl !== "") {
-      //   relUrl = pathParams.addPathParams(relUrl, ctx.params);
-      //   relUrl = pathParams.reorderPathParams(relUrl, ["n", "o", "t", "w", "s"]);
-      // }
 
       try {
         var client = new MultiplexClient(conn);
@@ -1110,7 +1101,7 @@ function initSession(shiny, options, shinyServer) {
       if (options.reconnect) {
         factory = reconnect.decorate(factory, options);
       }
-      factory = multiplex.decorate(factory);
+      factory = multiplex.decorate(factory, options);
 
       // Register the connection with Shiny.createSocket, etc.
       shiny.createSocket = function (_) {
@@ -1646,7 +1637,7 @@ function createSocket() {
 
   var relURL = window.frameElement.getAttribute("src");
   // Add /__sockjs__/ to the end of the path
-  relURL = relURL.replace(/\/?(\?|$)/, "/__sockjs__/$1");
+  relURL = relURL.replace(/\/?(\?.*|$)/, "/__sockjs__/");
   return window.parent.ShinyServer.multiplexer.open(relURL);
 }
 
