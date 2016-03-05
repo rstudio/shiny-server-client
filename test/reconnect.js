@@ -21,7 +21,10 @@ describe("Reconnect decorator", function() {
       connFactoryMock.factory(url, ctx, callback);
     };
     return {
-      factory: reconnect.decorate(factory, {reconnectTimeout: 100}),
+      factory: reconnect.decorate(factory, {
+        reconnectTimeout: 100,
+        connectErrorDelay: 0
+      }),
       fm: connFactoryMock
     };
   }
@@ -59,7 +62,7 @@ describe("Reconnect decorator", function() {
           assert.equal(conn.readyState, WebSocket.CLOSED);
 
           done();
-        }, 750);
+        }, 50);
       };
     });
   });
@@ -110,8 +113,6 @@ describe("Reconnect decorator", function() {
     // Allow connection, then close the underlying conn and
     // force all future conn attempts to fail
 
-    this.timeout(20000);
-
     let setup = createTestFactory();
 
     let connectionCount = 0;
@@ -154,7 +155,7 @@ describe("Reconnect decorator", function() {
         assert.equal(closeWasCalled, false);
 
         setup.fm.getConn().close(1005, "", false);
-      }, 1000);
+      }, 50);
 
     });
   });

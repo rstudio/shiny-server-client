@@ -470,7 +470,14 @@ exports.decorate = function (factory, options) {
       timeout = 15000;
     }
 
-    var conn = new RobustConnection(timeout, factory, url, ctx, robustId);
+    var connectErrorDelay = options.connectErrorDelay;
+    if (typeof connectErrorDelay === "undefined") {
+      // Delay return of promise by 500 milliseconds so
+      // "Attempting reconnect" UI doesn't flash so quickly
+      connectErrorDelay = 500;
+    }
+
+    var conn = new RobustConnection(timeout, factory, url, ctx, robustId, connectErrorDelay);
     conn = new BufferedResendConnection(conn);
     callback(null, conn);
   };
@@ -542,13 +549,14 @@ Things that can move this robust connection into different states:
 5) When a wasClean disconnect occurs, go to CLOSED.
 */
 
-function RobustConnection(timeout, factory, url, ctx, robustId) {
+function RobustConnection(timeout, factory, url, ctx, robustId, connectErrorDelay) {
   this._timeout = timeout;
   this._factory = factory;
   this._url = url;
   this.url = url; // public version; overridden by physical connections
   this._ctx = ctx;
   this._robustId = robustId;
+  this._connectErrorDelay = connectErrorDelay;
   this._conn = null;
   this._stayClosed = false;
 
@@ -629,18 +637,22 @@ RobustConnection.prototype._connect = function (timeoutMillis) {
     var url = pathParams.addPathParams(_this._url, params);
 
     var promise = util.promise();
+    var connectErrorDelay = _this._connectErrorDelay;
     _this._factory(url, _this._ctx, function (err, conn) {
       if (err) {
-        promise(false, [err]);
+        setTimeout(function (_) {
+          promise(false, [err]);
+        }, connectErrorDelay);
         return;
       }
 
       promisify_p(conn).then(function () {
         promise(true, arguments);
       }, function () {
+        var args = arguments;
         setTimeout(function () {
-          promise(false, arguments);
-        }, 500);
+          promise(false, args);
+        }, connectErrorDelay);
       }).done();
     });
     return promise;
