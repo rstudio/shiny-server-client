@@ -125,12 +125,12 @@ MessageReceiver.prototype.CONTINUE = function () {
 exports.formatId = formatId;
 function formatId(id) {
   return id.toString(16).toUpperCase();
-};
+}
 
 exports.parseId = parseId;
 function parseId(str) {
   return parseInt(str, 16);
-};
+}
 
 exports.parseTag = function (val) {
   var m = /^([\dA-F]+)#(.*)$/.exec(val);
@@ -269,6 +269,8 @@ exports.extractParams = function (url) {
 
 },{"assert":21}],5:[function(require,module,exports){
 "use strict";
+
+/*eslint-disable no-console*/
 
 module.exports = function (msg) {
   if (typeof console !== "undefined" && !module.exports.suppress) {
@@ -446,7 +448,7 @@ function generateId(size) {
     id += chars.substring(rnum, rnum + 1);
   }
   return id;
-};
+}
 
 // The job of this decorator is to serve as a "logical"
 // connection that can survive the death of a "physical"
@@ -622,7 +624,7 @@ RobustConnection.prototype._connect = function (timeoutMillis) {
   // Because it uses promisify_p, a successful resolve of the promise
   // means not only that the connection was created, but also entered
   // the WebSocket.OPEN state.
-  var open_p = function open_p() {
+  var open_p = function open_p(_) {
     var params = {};
     params[_this.readyState === WebSocket.CONNECTING ? "n" : "o"] = _this._robustId;
     var url = pathParams.addPathParams(_this._url, params);
@@ -806,8 +808,7 @@ function BufferedResendConnection(conn) {
 
   this._messageBuffer = new MessageBuffer();
   this._messageReceiver = new MessageReceiver();
-  this._messageReceiver.onacktimeout = function (e) {
-    var msgId = e.messageId;
+  this._messageReceiver.onacktimeout = function (_) {
     if (_this2._conn.readyState === WebSocket.OPEN && !_this2._disconnected) {
       _this2._conn.send(_this2._messageReceiver.ACK());
     }
@@ -915,9 +916,9 @@ BufferedResendConnection.prototype.send = function (data) {
 };
 
 },{"../../common/message-buffer":1,"../../common/message-receiver":2,"../../common/message-utils":3,"../../common/path-params":4,"../debug":5,"../log":12,"../util":19,"../websocket":20,"./base-connection-decorator":6,"assert":21,"events":22,"inherits":23}],10:[function(require,module,exports){
+(function (global){
 "use strict";
 
-var util = require("../util");
 var pathParams = require("../../common/path-params");
 
 // The job of this decorator is to request a token from
@@ -931,7 +932,7 @@ exports.decorate = function (factory, options) {
       throw new Error("No HTTP transport was provided");
     }
 
-    var xhr = exports.ajax("__token__", {
+    exports.ajax("__token__", {
       type: "GET",
       cache: false,
       dataType: "text",
@@ -948,15 +949,15 @@ exports.decorate = function (factory, options) {
 
 // Override this to mock.
 exports.ajax = null;
-if (typeof jQuery !== "undefined") {
-  exports.ajax = jQuery.ajax;
+if (typeof global.jQuery !== "undefined") {
+  exports.ajax = global.jQuery.ajax;
 }
 
-},{"../../common/path-params":4,"../util":19}],11:[function(require,module,exports){
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"../../common/path-params":4}],11:[function(require,module,exports){
 (function (global){
-"use strict";
+'use strict';
 
-var util = require("../util");
 var pathParams = require("../../common/path-params");
 
 // The job of this decorator is to add the worker ID
@@ -989,7 +990,7 @@ exports.decorate = function (factory, options) {
 
     if (!worker) {
       // Check to see if we were assigned a base href
-      var base = jQuery('base').attr('href');
+      var base = global.jQuery('base').attr('href');
       // Extract the worker ID if it's included in a larger URL.
       var mtch = base.match(/_w_(\w+)\//);
       base = mtch[1];
@@ -1009,8 +1010,10 @@ exports.decorate = function (factory, options) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../../common/path-params":4,"../util":19}],12:[function(require,module,exports){
+},{"../../common/path-params":4}],12:[function(require,module,exports){
 "use strict";
+
+/*eslint-disable no-console*/
 
 module.exports = function (msg) {
   if (typeof console !== "undefined" && !module.exports.suppress) {
@@ -1026,7 +1029,6 @@ module.exports.suppress = false;
 
 var assert = require("assert");
 var log = require("./log");
-var util = require("./util");
 var token = require("./decorators/token");
 var subapp = require("./subapp");
 //const extendsession = require("./extendsession");
@@ -1152,7 +1154,7 @@ global.preShinyInit = function (options) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./decorators/connection-context":7,"./decorators/multiplex":8,"./decorators/reconnect":9,"./decorators/token":10,"./decorators/worker-id":11,"./log":12,"./promised-connection":15,"./reconnect-ui":16,"./sockjs":17,"./subapp":18,"./util":19,"assert":21}],14:[function(require,module,exports){
+},{"./decorators/connection-context":7,"./decorators/multiplex":8,"./decorators/reconnect":9,"./decorators/token":10,"./decorators/worker-id":11,"./log":12,"./promised-connection":15,"./reconnect-ui":16,"./sockjs":17,"./subapp":18,"assert":21}],14:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1184,7 +1186,7 @@ function MultiplexClient(conn) {
   // A list of functions that fire when our connection goes away.
   this.onclose = [];
 
-  this._conn.onopen = function () {
+  this._conn.onopen = function (_) {
     log("Connection opened. " + global.location.href);
     var channel = undefined;
     while (channel = _this._pendingChannels.shift()) {
@@ -1246,12 +1248,12 @@ MultiplexClient.prototype.open = function (url) {
       this._pendingChannels.push(channel);
       break;
     case 1:
-      setTimeout(function () {
+      setTimeout(function (_) {
         channel._open();
       }, 0);
       break;
     default:
-      setTimeout(function () {
+      setTimeout(function (_) {
         channel.close();
       }, 0);
       break;
@@ -1308,7 +1310,7 @@ MultiplexClientChannel.prototype._destroy = function (e) {
   if (this.readyState !== 3) {
     this.readyState = 3;
     debug("Channel " + this.id + " is closed");
-    setTimeout(function () {
+    setTimeout(function (_) {
       _this2._owner.removeChannel(_this2.id);
       if (_this2.onclose) _this2.onclose(e);
     }, 0);
@@ -1353,7 +1355,7 @@ function parseMultiplexData(msg) {
 
     return msg;
   } catch (e) {
-    logger.debug('Error parsing multiplex data: ' + e);
+    log('Error parsing multiplex data: ' + e);
     return null;
   }
 }
@@ -1362,6 +1364,7 @@ function parseMultiplexData(msg) {
 },{"./debug":5,"./log":12}],15:[function(require,module,exports){
 "use strict";
 
+var util = require("./util");
 var WebSocket = require("./websocket");
 
 module.exports = PromisedConnection;
@@ -1417,7 +1420,7 @@ PromisedConnection.prototype.close = function (code, reason) {
     // are optional.
     this._conn.close.apply(this._conn, arguments);
   } else {
-    setTimeout(function () {
+    setTimeout(function (_) {
       if (_this2.onclose) {
         var evt = util.createEvent("close", {
           currentTarget: _this2,
@@ -1480,11 +1483,14 @@ Object.defineProperty(PromisedConnection.prototype, "extensions", {
   }
 });
 
-},{"./websocket":20}],16:[function(require,module,exports){
+},{"./util":19,"./websocket":20}],16:[function(require,module,exports){
+(function (global){
 "use strict";
 
 var EventEmitter = require("events").EventEmitter;
 var inherits = require("inherits");
+
+var $ = global.jQuery;
 
 module.exports = ReconnectUI;
 
@@ -1563,16 +1569,14 @@ ReconnectUI.prototype.showDisconnected = function () {
   $('#ss-overlay').addClass('ss-gray-out');
 };
 
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"events":22,"inherits":23}],17:[function(require,module,exports){
 (function (global){
 "use strict";
 
-var util = require("./util");
-
 var log = require("./log");
 var pathParams = require("../common/path-params");
 
-var disabled = false;
 var currConn = null;
 
 global.__shinyserverdebug__ = {
@@ -1591,9 +1595,6 @@ global.__shinyserverdebug__ = {
     // decorator to try reconnecting, which we normally
     // only do on !wasClean disconnects.
     currConn.close(4567);
-  },
-  disableServer: function disableServer() {
-    disabled = true;
   }
 };
 
@@ -1603,7 +1604,7 @@ exports.createFactory = function (options) {
 
     url = pathParams.reorderPathParams(url, ["n", "o", "t", "w", "s"]);
 
-    var conn = new SockJS(url, null, options);
+    var conn = new global.SockJS(url, null, options);
     currConn = conn;
 
     callback(null, conn);
@@ -1611,11 +1612,9 @@ exports.createFactory = function (options) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../common/path-params":4,"./log":12,"./util":19}],18:[function(require,module,exports){
+},{"../common/path-params":4,"./log":12}],18:[function(require,module,exports){
 (function (global){
 "use strict";
-
-var log = require("./log");
 
 exports.isSubApp = isSubApp;
 function isSubApp() {
@@ -1636,11 +1635,11 @@ function createSocket() {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./log":12}],19:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 (function (global){
 "use strict";
 
-var assert = require("assert");
+var log = require("./log");
 var pinkySwear = require("pinkyswear");
 
 exports.createNiceBackoffDelayFunc = function () {
@@ -1718,8 +1717,8 @@ exports.createEvent = function (type, props) {
 function addDone(prom) {
   prom.done = function () {
     prom.then(null, function (err) {
-      console.log("Unhandled promise error: " + err);
-      console.log(err.stack);
+      log("Unhandled promise error: " + err);
+      log(err.stack);
     });
   };
   return prom;
@@ -1750,7 +1749,7 @@ function PauseConnection(conn) {
 PauseConnection.prototype.resume = function () {
   var _this = this;
 
-  this._timeout = setTimeout(function () {
+  this._timeout = setTimeout(function (_) {
     while (_this._events.length) {
       var e = _this._events.shift();
       _this[e.event].apply(_this, e.args);
@@ -1792,7 +1791,7 @@ Object.defineProperty(PauseConnection.prototype, "extensions", {
 });
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"assert":21,"pinkyswear":24}],20:[function(require,module,exports){
+},{"./log":12,"pinkyswear":24}],20:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {

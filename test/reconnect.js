@@ -3,7 +3,6 @@ const assert = require("chai").assert;
 const pathParams = require("../common/path-params");
 
 const reconnect = require("../lib/decorators/reconnect");
-const util = require("../lib/util");
 const WebSocket = require("../lib/websocket");
 const ConnectionContext = require("../lib/decorators/connection-context");
 const common = require("./common");
@@ -11,9 +10,9 @@ const common = require("./common");
 describe("Reconnect decorator", function() {
 
   function createTestFactory() {
-    var connFactoryMock = common.createConnFactoryMock(true);
+    let connFactoryMock = common.createConnFactoryMock(true);
 
-    var factory = function(url, ctx, callback) {
+    let factory = function(url, ctx, callback) {
       // Randomize the URL a bit, so we can distinguish physical
       // connections from each other.
       url = pathParams.addPathParams(url, {rnd: Math.round(Math.random()*1e12)});
@@ -26,7 +25,7 @@ describe("Reconnect decorator", function() {
   }
 
   it("reconnects", function(done) {
-    var setup = createTestFactory();
+    let setup = createTestFactory();
     setup.factory("/foo/bar", new ConnectionContext(), function(err, conn) {
       if (err) {
         throw err;
@@ -39,7 +38,7 @@ describe("Reconnect decorator", function() {
         // Physical connection has connected.
         assert.equal(conn.readyState, WebSocket.OPEN);
 
-        var origConn = setup.fm.getConn();
+        let origConn = setup.fm.getConn();
 
         // Killing the physical connection doesn't cause the logical
         // connection to close.
@@ -67,9 +66,9 @@ describe("Reconnect decorator", function() {
     // If initial connection attempt fails, then the connection should
     // immediately close.
 
-    var setup = createTestFactory();
+    let setup = createTestFactory();
 
-    var connectionCount = 0;
+    let connectionCount = 0;
     setup.fm.onConnCreate = function(mockConn) {
       connectionCount++;
       mockConn.sendContinue = connectionCount > 1;
@@ -81,15 +80,15 @@ describe("Reconnect decorator", function() {
         throw err;
       }
 
-      var openWasCalled = false;
-      var errorWasCalled = false;
-      var closeWasCalled = false;
+      let openWasCalled = false;
+      let errorWasCalled = false;
+      let closeWasCalled = false;
 
       conn.onopen = function() { openWasCalled = true; };
       conn.onerror = function() { errorWasCalled = true; };
       conn.onclose = function() { closeWasCalled = true; };
 
-      setTimeout(function() {
+      setTimeout(_ => {
         assert.equal(conn.readyState, WebSocket.CLOSED);
         assert.equal(connectionCount, 1);
         assert.equal(openWasCalled, false);
@@ -107,9 +106,9 @@ describe("Reconnect decorator", function() {
 
     this.timeout(20000);
 
-    var setup = createTestFactory();
+    let setup = createTestFactory();
 
-    var connectionCount = 0;
+    let connectionCount = 0;
     setup.fm.onConnCreate = function(mockConn) {
       connectionCount++;
       // Attempts at initial connection should have an n= URL
@@ -133,9 +132,9 @@ describe("Reconnect decorator", function() {
         throw err;
       }
 
-      var openWasCalled = false;
-      var errorWasCalled = false;
-      var closeWasCalled = false;
+      let openWasCalled = false;
+      let errorWasCalled = false;
+      let closeWasCalled = false;
 
       conn.onopen = function() { openWasCalled = true; };
       conn.onerror = function() { errorWasCalled = true; };
@@ -144,6 +143,10 @@ describe("Reconnect decorator", function() {
       setTimeout(function() {
         assert.equal(conn.readyState, WebSocket.OPEN);
         assert.equal(setup.fm.getConn().readyState, WebSocket.OPEN);
+        assert.equal(openWasCalled, true);
+        assert.equal(errorWasCalled, false);
+        assert.equal(closeWasCalled, false);
+
         setup.fm.getConn().close(1005, "", false);
       }, 1000);
 
@@ -151,7 +154,7 @@ describe("Reconnect decorator", function() {
   });
 
   it("prepends message numbers", function(done) {
-    var setup = createTestFactory();
+    let setup = createTestFactory();
     setup.factory("/foo/bar", new ConnectionContext(), function(err, conn) {
       if (err) {
         throw err;

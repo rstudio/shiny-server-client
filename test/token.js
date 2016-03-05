@@ -4,7 +4,7 @@ const ConnectionContext = require("../lib/decorators/connection-context");
 const token = require("../lib/decorators/token");
 const common = require("./common");
 
-var oldAjax;
+let oldAjax;
 
 // Hijack the ajax requestor to always return "fizzbuzz"
 // on __token__ request
@@ -28,9 +28,9 @@ after(function() {
 
 describe("Token decorator", function() {
   it("adds token path-param", function(done) {
-    var fm = common.createConnFactoryMock(false);
+    let fm = common.createConnFactoryMock(false);
 
-    var factory = token.decorate(fm.factory);
+    let factory = token.decorate(fm.factory);
 
     factory("/foo/bar", new ConnectionContext(), function(err, conn) {
       if (err) {

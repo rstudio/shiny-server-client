@@ -4,7 +4,7 @@ const ConnectionContext = require("../lib/decorators/connection-context");
 const workerId = require("../lib/decorators/worker-id");
 const common = require("./common");
 
-var oldLocation;
+let oldLocation;
 
 before(function() {
   oldLocation = global.location;
@@ -20,9 +20,9 @@ after(function() {
 
 describe("Worker ID decorator", function() {
   it("adds worker ID from URL search", function(done) {
-    var fm = common.createConnFactoryMock(false);
+    let fm = common.createConnFactoryMock(false);
 
-    var factory = workerId.decorate(fm.factory);
+    let factory = workerId.decorate(fm.factory);
 
     factory("/foo/bar", new ConnectionContext(), function(err, conn) {
       if (err) {

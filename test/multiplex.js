@@ -3,19 +3,18 @@ const assert = require("chai").assert;
 const debug = require("../lib/debug");
 const log = require("../lib/log");
 const multiplex = require("../lib/decorators/multiplex");
-const util = require("../lib/util");
 
 const ConnectionContext = require("../lib/decorators/connection-context");
 
 const common = require("./common");
 
 // Squelch log/debug messages during tests
-var logSuppress;
-var debugSuppress;
+let logSuppress;
+let debugSuppress;
 before(function() {
-  var logSuppress = log.suppress;
+  let logSuppress = log.suppress; // eslint-disable-line no-unused-vars
   log.suppress = true;
-  var debugSuppress = debug.suppress;
+  let debugSuppress = debug.suppress; // eslint-disable-line no-unused-vars
   debug.suppress = true;
 });
 after(function() {
@@ -24,11 +23,11 @@ after(function() {
 });
 
 describe("Multiplex decorator", function() {
-  var fm = common.createConnFactoryMock(false);
-  var factory = multiplex.decorate(fm.factory, {});
+  let fm = common.createConnFactoryMock(false);
+  let factory = multiplex.decorate(fm.factory, {});
 
   it("adds expected info to ctx", function(done) {
-    var ctx = new ConnectionContext();
+    let ctx = new ConnectionContext();
     factory("/foo/bar", ctx, function(err, conn) {
       if (err) {
         throw err;
@@ -41,13 +40,13 @@ describe("Multiplex decorator", function() {
   });
 
   it("implements multiplex protocol", function(done) {
-    var ctx = new ConnectionContext();
+    let ctx = new ConnectionContext();
     factory("/foo/bar", ctx, function(err, conn) {
       if (err) {
         throw err;
       }
 
-      var childConn1 = ctx.multiplexClient.open("/subapp1");
+      let childConn1 = ctx.multiplexClient.open("/subapp1");
 
       conn.onopen = function() {
         conn.send("Hello world!");

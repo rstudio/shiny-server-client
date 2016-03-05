@@ -9,8 +9,8 @@ const message_utils = require("../common/message-utils");
 // the factory was invoked with, or values sent.
 exports.createConnFactoryMock = createConnFactoryMock;
 function createConnFactoryMock(robust) {
-  var conn = null;
-  var self = {
+  let conn = null;
+  let self = {
     factory: function(url, ctx, callback) {
       conn = new MockConnection(this, url, ctx, true, robust);
       self.onConnCreate(conn);
@@ -25,10 +25,9 @@ function createConnFactoryMock(robust) {
     onConnCreate: function(conn) {}
   };
   return self;
-};
+}
 
 function MockConnection(parent, url, ctx, open, robust) {
-  var self = this;
   this._parent = parent;
   this.url = url;
   this.ctx = ctx;
@@ -39,13 +38,13 @@ function MockConnection(parent, url, ctx, open, robust) {
   this.readyState = WebSocket.CONNECTING;
 
   if (open) {
-    setTimeout(function() {
-      if (self.readyState === WebSocket.CONNECTING) {
-        self.readyState = WebSocket.OPEN;
-        self.onopen(util.createEvent("open"));
-        if (self.robust && self.sendContinue) {
-          self.onmessage({
-            data: "CONTINUE " + (self._parent.nextId || 0).toString(16).toUpperCase()
+    setTimeout(_ => {
+      if (this.readyState === WebSocket.CONNECTING) {
+        this.readyState = WebSocket.OPEN;
+        this.onopen(util.createEvent("open"));
+        if (this.robust && this.sendContinue) {
+          this.onmessage({
+            data: "CONTINUE " + (this._parent.nextId || 0).toString(16).toUpperCase()
           });
         }
       }
@@ -55,9 +54,9 @@ function MockConnection(parent, url, ctx, open, robust) {
 
 MockConnection.prototype.send = function(data) {
   if (this.robust) {
-    var cont = message_utils.parseCONTINUE(data) !== null;
-    var ack = message_utils.parseACK(data) !== null;
-    var msg = message_utils.parseTag(data);
+    let cont = message_utils.parseCONTINUE(data) !== null;
+    let ack = message_utils.parseACK(data) !== null;
+    let msg = message_utils.parseTag(data);
 
     if (!cont && !ack && !msg) {
       throw new Error("Message was not robustified: " + data);
