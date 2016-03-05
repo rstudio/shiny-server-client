@@ -59,12 +59,13 @@ describe("Reconnect decorator", function() {
           assert.equal(conn.readyState, WebSocket.CLOSED);
 
           done();
-        }, 50);
+        }, 750);
       };
     });
   });
 
   it("failure on initial connection doesn't trigger retry", function(done) {
+    this.timeout(10000);
     // If initial connection attempt fails, then the connection should
     // immediately close.
 
@@ -88,16 +89,19 @@ describe("Reconnect decorator", function() {
 
       conn.onopen = function() { openWasCalled = true; };
       conn.onerror = function() { errorWasCalled = true; };
-      conn.onclose = function() { closeWasCalled = true; };
+      conn.onclose = function() {
+        closeWasCalled = true;
+        finish();
+      };
 
-      setTimeout(_ => {
+      function finish() {
         assert.equal(conn.readyState, WebSocket.CLOSED);
         assert.equal(connectionCount, 1);
         assert.equal(openWasCalled, false);
         assert.equal(errorWasCalled, true);
         assert.equal(closeWasCalled, true);
         done();
-      }, 50);
+      }
     });
   });
 
