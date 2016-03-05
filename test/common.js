@@ -1,7 +1,7 @@
-var util = require("../lib/util");
-var WebSocket = require("../lib/websocket");
+const util = require("../lib/util");
+const WebSocket = require("../lib/websocket");
 
-var message_utils = require("../common/message-utils");
+const message_utils = require("../common/message-utils");
 
 // A mock connection factory. It lets you test connection
 // factory decorators by standing in for a connection

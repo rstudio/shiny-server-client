@@ -1,13 +1,13 @@
-var assert = require("chai").assert;
+const assert = require("chai").assert;
 
-var debug = require("../lib/debug");
-var log = require("../lib/log");
-var multiplex = require("../lib/decorators/multiplex");
-var util = require("../lib/util");
+const debug = require("../lib/debug");
+const log = require("../lib/log");
+const multiplex = require("../lib/decorators/multiplex");
+const util = require("../lib/util");
 
-var ConnectionContext = require("../lib/decorators/connection-context");
+const ConnectionContext = require("../lib/decorators/connection-context");
 
-var common = require("./common");
+const common = require("./common");
 
 // Squelch log/debug messages during tests
 var logSuppress;

@@ -1,8 +1,8 @@
-var assert = require("chai").assert;
+const assert = require("chai").assert;
 
-var ConnectionContext = require("../lib/decorators/connection-context");
-var token = require("../lib/decorators/token");
-var common = require("./common");
+const ConnectionContext = require("../lib/decorators/connection-context");
+const token = require("../lib/decorators/token");
+const common = require("./common");
 
 var oldAjax;
 

@@ -1,12 +1,12 @@
-var assert = require("chai").assert;
+const assert = require("chai").assert;
 
-var pathParams = require("../common/path-params");
+const pathParams = require("../common/path-params");
 
-var reconnect = require("../lib/decorators/reconnect");
-var util = require("../lib/util");
-var WebSocket = require("../lib/websocket");
-var ConnectionContext = require("../lib/decorators/connection-context");
-var common = require("./common");
+const reconnect = require("../lib/decorators/reconnect");
+const util = require("../lib/util");
+const WebSocket = require("../lib/websocket");
+const ConnectionContext = require("../lib/decorators/connection-context");
+const common = require("./common");
 
 describe("Reconnect decorator", function() {
 

@@ -373,7 +373,7 @@ var pathParams = require("../../common/path-params");
 // webpage/frame.
 //
 // * Writes to ctx: multiplexClient (MultiplexClient)
-// * Reads from ctx: params
+// * Reads from ctx: nothing
 exports.decorate = function (factory, options) {
   return function (url, ctx, callback) {
 
@@ -453,7 +453,7 @@ function generateId(size) {
 // connection, and restore the connection.
 //
 // * Reads from options: reconnectTimeout (in millis; <0 to disable)
-// * Writes to ctx: params.n or params.o
+// * Writes to ctx: nothing
 // * Reads from ctx: nothing
 exports.decorate = function (factory, options) {
   // Returns a connection promise
@@ -917,7 +917,7 @@ BufferedResendConnection.prototype.send = function (data) {
 },{"../../common/message-buffer":1,"../../common/message-receiver":2,"../../common/message-utils":3,"../../common/path-params":4,"../debug":5,"../log":12,"../util":19,"../websocket":20,"./base-connection-decorator":6,"assert":21,"events":22,"inherits":23}],10:[function(require,module,exports){
 "use strict";
 
-var util = require('../util');
+var util = require("../util");
 var pathParams = require("../../common/path-params");
 
 // The job of this decorator is to request a token from
@@ -954,9 +954,9 @@ if (typeof jQuery !== "undefined") {
 
 },{"../../common/path-params":4,"../util":19}],11:[function(require,module,exports){
 (function (global){
-'use strict';
+"use strict";
 
-var util = require('../util');
+var util = require("../util");
 var pathParams = require("../../common/path-params");
 
 // The job of this decorator is to add the worker ID
@@ -1026,13 +1026,13 @@ module.exports.suppress = false;
 
 var assert = require("assert");
 var log = require("./log");
-var util = require('./util');
-var token = require('./decorators/token');
-var subapp = require('./subapp');
-//let extendsession = require('./extendsession');
-var reconnect = require('./decorators/reconnect');
-var multiplex = require('./decorators/multiplex');
-var workerId = require('./decorators/worker-id');
+var util = require("./util");
+var token = require("./decorators/token");
+var subapp = require("./subapp");
+//const extendsession = require("./extendsession");
+var reconnect = require("./decorators/reconnect");
+var multiplex = require("./decorators/multiplex");
+var workerId = require("./decorators/worker-id");
 var sockjs = require("./sockjs");
 var PromisedConnection = require("./promised-connection");
 var ConnectionContext = require("./decorators/connection-context");
@@ -1154,10 +1154,10 @@ global.preShinyInit = function (options) {
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"./decorators/connection-context":7,"./decorators/multiplex":8,"./decorators/reconnect":9,"./decorators/token":10,"./decorators/worker-id":11,"./log":12,"./promised-connection":15,"./reconnect-ui":16,"./sockjs":17,"./subapp":18,"./util":19,"assert":21}],14:[function(require,module,exports){
 (function (global){
-'use strict';
+"use strict";
 
-var log = require('./log');
-var debug = require('./debug');
+var log = require("./log");
+var debug = require("./debug");
 
 // MultiplexClient sits on top of a SockJS connection and lets the caller
 // open logical SockJS connections (channels). The SockJS connection is

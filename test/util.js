@@ -1,6 +1,6 @@
-var assert = require("chai").assert;
+const assert = require("chai").assert;
 
-var util = require("../lib/util");
+const util = require("../lib/util");
 
 describe("Nice backoff", function() {
   it("is nice", function() {

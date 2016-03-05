@@ -1,8 +1,8 @@
-var assert = require("chai").assert;
+const assert = require("chai").assert;
 
-var ConnectionContext = require("../lib/decorators/connection-context");
-var workerId = require("../lib/decorators/worker-id");
-var common = require("./common");
+const ConnectionContext = require("../lib/decorators/connection-context");
+const workerId = require("../lib/decorators/worker-id");
+const common = require("./common");
 
 var oldLocation;
 
