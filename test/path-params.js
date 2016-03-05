@@ -1,3 +1,5 @@
+"use strict";
+
 const assert = require("assert");
 const pathParams = require("../common/path-params");
 

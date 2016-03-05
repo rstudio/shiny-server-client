@@ -268,9 +268,8 @@ exports.extractParams = function (url) {
 };
 
 },{"assert":21}],5:[function(require,module,exports){
-"use strict";
-
 /*eslint-disable no-console*/
+"use strict";
 
 module.exports = function (msg) {
   if (typeof console !== "undefined" && !module.exports.suppress) {
@@ -956,7 +955,7 @@ if (typeof global.jQuery !== "undefined") {
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"../../common/path-params":4}],11:[function(require,module,exports){
 (function (global){
-'use strict';
+"use strict";
 
 var pathParams = require("../../common/path-params");
 
@@ -1011,9 +1010,8 @@ exports.decorate = function (factory, options) {
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"../../common/path-params":4}],12:[function(require,module,exports){
-"use strict";
-
 /*eslint-disable no-console*/
+"use strict";
 
 module.exports = function (msg) {
   if (typeof console !== "undefined" && !module.exports.suppress) {
@@ -1794,15 +1792,12 @@ Object.defineProperty(PauseConnection.prototype, "extensions", {
 },{"./log":12,"pinkyswear":24}],20:[function(require,module,exports){
 "use strict";
 
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
 // Constants from WebSocket and SockJS APIs.
 
-var CONNECTING = exports.CONNECTING = 0;
-var OPEN = exports.OPEN = 1;
-var CLOSING = exports.CLOSING = 2;
-var CLOSED = exports.CLOSED = 3;
+exports.CONNECTING = 0;
+exports.OPEN = 1;
+exports.CLOSING = 2;
+exports.CLOSED = 3;
 
 },{}],21:[function(require,module,exports){
 // http://wiki.commonjs.org/wiki/Unit_Testing/1.0

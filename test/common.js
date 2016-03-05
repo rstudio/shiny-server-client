@@ -1,3 +1,5 @@
+"use strict";
+
 const util = require("../lib/util");
 const WebSocket = require("../lib/websocket");
 

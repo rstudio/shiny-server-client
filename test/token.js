@@ -1,3 +1,5 @@
+"use strict";
+
 const assert = require("chai").assert;
 
 const ConnectionContext = require("../lib/decorators/connection-context");

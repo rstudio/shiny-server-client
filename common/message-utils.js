@@ -1,3 +1,5 @@
+"use strict";
+
 exports.formatId = formatId;
 function formatId(id) {
   return id.toString(16).toUpperCase();
