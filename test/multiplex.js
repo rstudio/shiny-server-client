@@ -14,9 +14,9 @@ const common = require("./common");
 let logSuppress;
 let debugSuppress;
 before(function() {
-  let logSuppress = log.suppress; // eslint-disable-line no-unused-vars
+  logSuppress = log.suppress;
   log.suppress = true;
-  let debugSuppress = debug.suppress; // eslint-disable-line no-unused-vars
+  debugSuppress = debug.suppress;
   debug.suppress = true;
 });
 after(function() {
