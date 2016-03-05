@@ -351,12 +351,10 @@ module.exports = ConnectionContext;
 
 function ConnectionContext() {
   EventEmitter.call(this);
-
-  this.params = {};
 }
 inherits(ConnectionContext, EventEmitter);
 
-},{"events":22,"inherits":26}],8:[function(require,module,exports){
+},{"events":22,"inherits":23}],8:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -384,7 +382,6 @@ exports.decorate = function (factory, options) {
     if (options.subappTag) {
       url = pathParams.addPathParams(url, { s: 0 });
     }
-    ctx.params.s = 0;
 
     ctx.multiplexClient = {
       open: function open(url) {
@@ -628,7 +625,6 @@ RobustConnection.prototype._connect = function (timeoutMillis) {
   var open_p = function open_p() {
     var params = {};
     params[_this.readyState === WebSocket.CONNECTING ? "n" : "o"] = _this._robustId;
-    _this._ctx.params[_this.readyState === WebSocket.CONNECTING ? "n" : "o"] = _this._robustId;
     var url = pathParams.addPathParams(_this._url, params);
 
     var promise = util.promise();
@@ -918,7 +914,7 @@ BufferedResendConnection.prototype.send = function (data) {
   if (!this._disconnected) this._conn.send(data);
 };
 
-},{"../../common/message-buffer":1,"../../common/message-receiver":2,"../../common/message-utils":3,"../../common/path-params":4,"../debug":5,"../log":12,"../util":19,"../websocket":20,"./base-connection-decorator":6,"assert":21,"events":22,"inherits":26}],10:[function(require,module,exports){
+},{"../../common/message-buffer":1,"../../common/message-receiver":2,"../../common/message-utils":3,"../../common/path-params":4,"../debug":5,"../log":12,"../util":19,"../websocket":20,"./base-connection-decorator":6,"assert":21,"events":22,"inherits":23}],10:[function(require,module,exports){
 "use strict";
 
 var util = require('../util');
@@ -941,7 +937,6 @@ exports.decorate = function (factory, options) {
       dataType: "text",
       success: function success(data, textStatus) {
         var newUrl = pathParams.addPathParams(url, { "t": data });
-        ctx.params.t = data;
         factory(newUrl, ctx, callback);
       },
       error: function error(jqXHR, textStatus, errorThrown) {
@@ -1008,7 +1003,6 @@ exports.decorate = function (factory, options) {
 
     if (worker) {
       url = pathParams.addPathParams(url, { "w": worker });
-      ctx.params.w = worker;
     }
     return factory(url, ctx, callback);
   };
@@ -1569,7 +1563,7 @@ ReconnectUI.prototype.showDisconnected = function () {
   $('#ss-overlay').addClass('ss-gray-out');
 };
 
-},{"events":22,"inherits":26}],17:[function(require,module,exports){
+},{"events":22,"inherits":23}],17:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1798,7 +1792,7 @@ Object.defineProperty(PauseConnection.prototype, "extensions", {
 });
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"assert":21,"pinkyswear":27}],20:[function(require,module,exports){
+},{"assert":21,"pinkyswear":24}],20:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -2172,7 +2166,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":25}],22:[function(require,module,exports){
+},{"util/":27}],22:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -2473,6 +2467,152 @@ function isUndefined(arg) {
 }
 
 },{}],23:[function(require,module,exports){
+if (typeof Object.create === 'function') {
+  // implementation from standard node.js 'util' module
+  module.exports = function inherits(ctor, superCtor) {
+    ctor.super_ = superCtor
+    ctor.prototype = Object.create(superCtor.prototype, {
+      constructor: {
+        value: ctor,
+        enumerable: false,
+        writable: true,
+        configurable: true
+      }
+    });
+  };
+} else {
+  // old school shim for old browsers
+  module.exports = function inherits(ctor, superCtor) {
+    ctor.super_ = superCtor
+    var TempCtor = function () {}
+    TempCtor.prototype = superCtor.prototype
+    ctor.prototype = new TempCtor()
+    ctor.prototype.constructor = ctor
+  }
+}
+
+},{}],24:[function(require,module,exports){
+(function (process){
+/*
+ * PinkySwear.js 2.2.2 - Minimalistic implementation of the Promises/A+ spec
+ * 
+ * Public Domain. Use, modify and distribute it any way you like. No attribution required.
+ *
+ * NO WARRANTY EXPRESSED OR IMPLIED. USE AT YOUR OWN RISK.
+ *
+ * PinkySwear is a very small implementation of the Promises/A+ specification. After compilation with the
+ * Google Closure Compiler and gzipping it weighs less than 500 bytes. It is based on the implementation for 
+ * Minified.js and should be perfect for embedding. 
+ *
+ *
+ * PinkySwear has just three functions.
+ *
+ * To create a new promise in pending state, call pinkySwear():
+ *         var promise = pinkySwear();
+ *
+ * The returned object has a Promises/A+ compatible then() implementation:
+ *          promise.then(function(value) { alert("Success!"); }, function(value) { alert("Failure!"); });
+ *
+ *
+ * The promise returned by pinkySwear() is a function. To fulfill the promise, call the function with true as first argument and
+ * an optional array of values to pass to the then() handler. By putting more than one value in the array, you can pass more than one
+ * value to the then() handlers. Here an example to fulfill a promsise, this time with only one argument: 
+ *         promise(true, [42]);
+ *
+ * When the promise has been rejected, call it with false. Again, there may be more than one argument for the then() handler:
+ *         promise(true, [6, 6, 6]);
+ *         
+ * You can obtain the promise's current state by calling the function without arguments. It will be true if fulfilled,
+ * false if rejected, and otherwise undefined.
+ * 		   var state = promise(); 
+ * 
+ * https://github.com/timjansen/PinkySwear.js
+ */
+(function(target) {
+	var undef;
+
+	function isFunction(f) {
+		return typeof f == 'function';
+	}
+	function isObject(f) {
+		return typeof f == 'object';
+	}
+	function defer(callback) {
+		if (typeof setImmediate != 'undefined')
+			setImmediate(callback);
+		else if (typeof process != 'undefined' && process['nextTick'])
+			process['nextTick'](callback);
+		else
+			setTimeout(callback, 0);
+	}
+
+	target[0][target[1]] = function pinkySwear(extend) {
+		var state;           // undefined/null = pending, true = fulfilled, false = rejected
+		var values = [];     // an array of values as arguments for the then() handlers
+		var deferred = [];   // functions to call when set() is invoked
+
+		var set = function(newState, newValues) {
+			if (state == null && newState != null) {
+				state = newState;
+				values = newValues;
+				if (deferred.length)
+					defer(function() {
+						for (var i = 0; i < deferred.length; i++)
+							deferred[i]();
+					});
+			}
+			return state;
+		};
+
+		set['then'] = function (onFulfilled, onRejected) {
+			var promise2 = pinkySwear(extend);
+			var callCallbacks = function() {
+	    		try {
+	    			var f = (state ? onFulfilled : onRejected);
+	    			if (isFunction(f)) {
+		   				function resolve(x) {
+						    var then, cbCalled = 0;
+		   					try {
+				   				if (x && (isObject(x) || isFunction(x)) && isFunction(then = x['then'])) {
+										if (x === promise2)
+											throw new TypeError();
+										then['call'](x,
+											function() { if (!cbCalled++) resolve.apply(undef,arguments); } ,
+											function(value){ if (!cbCalled++) promise2(false,[value]);});
+				   				}
+				   				else
+				   					promise2(true, arguments);
+		   					}
+		   					catch(e) {
+		   						if (!cbCalled++)
+		   							promise2(false, [e]);
+		   					}
+		   				}
+		   				resolve(f.apply(undef, values || []));
+		   			}
+		   			else
+		   				promise2(state, values);
+				}
+				catch (e) {
+					promise2(false, [e]);
+				}
+			};
+			if (state != null)
+				defer(callCallbacks);
+			else
+				deferred.push(callCallbacks);
+			return promise2;
+		};
+        if(extend){
+            set = extend(set);
+        }
+		return set;
+	};
+})(typeof module == 'undefined' ? [window, 'pinkySwear'] : [module, 'exports']);
+
+
+}).call(this,require('_process'))
+},{"_process":25}],25:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -2565,14 +2705,14 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],24:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],25:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -3162,150 +3302,4 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":24,"_process":23,"inherits":26}],26:[function(require,module,exports){
-if (typeof Object.create === 'function') {
-  // implementation from standard node.js 'util' module
-  module.exports = function inherits(ctor, superCtor) {
-    ctor.super_ = superCtor
-    ctor.prototype = Object.create(superCtor.prototype, {
-      constructor: {
-        value: ctor,
-        enumerable: false,
-        writable: true,
-        configurable: true
-      }
-    });
-  };
-} else {
-  // old school shim for old browsers
-  module.exports = function inherits(ctor, superCtor) {
-    ctor.super_ = superCtor
-    var TempCtor = function () {}
-    TempCtor.prototype = superCtor.prototype
-    ctor.prototype = new TempCtor()
-    ctor.prototype.constructor = ctor
-  }
-}
-
-},{}],27:[function(require,module,exports){
-(function (process){
-/*
- * PinkySwear.js 2.2.2 - Minimalistic implementation of the Promises/A+ spec
- * 
- * Public Domain. Use, modify and distribute it any way you like. No attribution required.
- *
- * NO WARRANTY EXPRESSED OR IMPLIED. USE AT YOUR OWN RISK.
- *
- * PinkySwear is a very small implementation of the Promises/A+ specification. After compilation with the
- * Google Closure Compiler and gzipping it weighs less than 500 bytes. It is based on the implementation for 
- * Minified.js and should be perfect for embedding. 
- *
- *
- * PinkySwear has just three functions.
- *
- * To create a new promise in pending state, call pinkySwear():
- *         var promise = pinkySwear();
- *
- * The returned object has a Promises/A+ compatible then() implementation:
- *          promise.then(function(value) { alert("Success!"); }, function(value) { alert("Failure!"); });
- *
- *
- * The promise returned by pinkySwear() is a function. To fulfill the promise, call the function with true as first argument and
- * an optional array of values to pass to the then() handler. By putting more than one value in the array, you can pass more than one
- * value to the then() handlers. Here an example to fulfill a promsise, this time with only one argument: 
- *         promise(true, [42]);
- *
- * When the promise has been rejected, call it with false. Again, there may be more than one argument for the then() handler:
- *         promise(true, [6, 6, 6]);
- *         
- * You can obtain the promise's current state by calling the function without arguments. It will be true if fulfilled,
- * false if rejected, and otherwise undefined.
- * 		   var state = promise(); 
- * 
- * https://github.com/timjansen/PinkySwear.js
- */
-(function(target) {
-	var undef;
-
-	function isFunction(f) {
-		return typeof f == 'function';
-	}
-	function isObject(f) {
-		return typeof f == 'object';
-	}
-	function defer(callback) {
-		if (typeof setImmediate != 'undefined')
-			setImmediate(callback);
-		else if (typeof process != 'undefined' && process['nextTick'])
-			process['nextTick'](callback);
-		else
-			setTimeout(callback, 0);
-	}
-
-	target[0][target[1]] = function pinkySwear(extend) {
-		var state;           // undefined/null = pending, true = fulfilled, false = rejected
-		var values = [];     // an array of values as arguments for the then() handlers
-		var deferred = [];   // functions to call when set() is invoked
-
-		var set = function(newState, newValues) {
-			if (state == null && newState != null) {
-				state = newState;
-				values = newValues;
-				if (deferred.length)
-					defer(function() {
-						for (var i = 0; i < deferred.length; i++)
-							deferred[i]();
-					});
-			}
-			return state;
-		};
-
-		set['then'] = function (onFulfilled, onRejected) {
-			var promise2 = pinkySwear(extend);
-			var callCallbacks = function() {
-	    		try {
-	    			var f = (state ? onFulfilled : onRejected);
-	    			if (isFunction(f)) {
-		   				function resolve(x) {
-						    var then, cbCalled = 0;
-		   					try {
-				   				if (x && (isObject(x) || isFunction(x)) && isFunction(then = x['then'])) {
-										if (x === promise2)
-											throw new TypeError();
-										then['call'](x,
-											function() { if (!cbCalled++) resolve.apply(undef,arguments); } ,
-											function(value){ if (!cbCalled++) promise2(false,[value]);});
-				   				}
-				   				else
-				   					promise2(true, arguments);
-		   					}
-		   					catch(e) {
-		   						if (!cbCalled++)
-		   							promise2(false, [e]);
-		   					}
-		   				}
-		   				resolve(f.apply(undef, values || []));
-		   			}
-		   			else
-		   				promise2(state, values);
-				}
-				catch (e) {
-					promise2(false, [e]);
-				}
-			};
-			if (state != null)
-				defer(callCallbacks);
-			else
-				deferred.push(callCallbacks);
-			return promise2;
-		};
-        if(extend){
-            set = extend(set);
-        }
-		return set;
-	};
-})(typeof module == 'undefined' ? [window, 'pinkySwear'] : [module, 'exports']);
-
-
-}).call(this,require('_process'))
-},{"_process":23}]},{},[13]);
+},{"./support/isBuffer":26,"_process":25,"inherits":23}]},{},[13]);
