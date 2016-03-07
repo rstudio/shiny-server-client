@@ -267,7 +267,7 @@ exports.extractParams = function (url) {
   return result;
 };
 
-},{"assert":21}],5:[function(require,module,exports){
+},{"assert":22}],5:[function(require,module,exports){
 /*eslint-disable no-console*/
 "use strict";
 
@@ -355,7 +355,51 @@ function ConnectionContext() {
 }
 inherits(ConnectionContext, EventEmitter);
 
-},{"events":22,"inherits":26}],8:[function(require,module,exports){
+},{"events":23,"inherits":27}],8:[function(require,module,exports){
+(function (global){
+"use strict";
+
+var BaseConnectionDecorator = require("./base-connection-decorator");
+var debug = require("../debug");
+
+function extendSession() {
+  global.jQuery.ajax("__extendsession__", { type: "POST", async: true }).done(function (_) {
+    debug("__extendsession__ succeeded");
+  }).fail(function (_) {
+    debug("__extendsession__ failed");
+  });
+}
+
+// Sends __extendsession__ requests repeatedly while connection to the server
+// exists. This keeps the session alive by causing the cookies to be refreshed.
+//
+// * Writes to ctx: nothing
+// * Reads from ctx: nothing
+exports.decorate = function (factory, options) {
+  return function (url, ctx, callback) {
+    var extendSessionInterval = null;
+
+    factory(url, ctx, function (err, conn) {
+      if (!err) {
+        extendSessionInterval = setInterval(extendSession, 5 * 1000);
+      }
+
+      // Pass through the connection except clear the extendSessionInterval on
+      // close.
+      var wrapper = new BaseConnectionDecorator(conn);
+      conn.onclose = function () {
+        clearInterval(extendSessionInterval);
+        extendSessionInterval = null;
+        if (wrapper.onclose) wrapper.onclose.apply(wrapper, arguments);
+      };
+
+      callback(err, wrapper);
+    });
+  };
+};
+
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"../debug":5,"./base-connection-decorator":6}],9:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -420,7 +464,7 @@ exports.decorate = function (factory, options) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../../common/path-params":4,"../multiplex-client":14,"../promised-connection":15,"../util":19}],9:[function(require,module,exports){
+},{"../../common/path-params":4,"../multiplex-client":15,"../promised-connection":16,"../util":20}],10:[function(require,module,exports){
 "use strict";
 
 var assert = require("assert");
@@ -926,7 +970,7 @@ BufferedResendConnection.prototype.send = function (data) {
   if (!this._disconnected) this._conn.send(data);
 };
 
-},{"../../common/message-buffer":1,"../../common/message-receiver":2,"../../common/message-utils":3,"../../common/path-params":4,"../debug":5,"../log":12,"../util":19,"../websocket":20,"./base-connection-decorator":6,"assert":21,"events":22,"inherits":26}],10:[function(require,module,exports){
+},{"../../common/message-buffer":1,"../../common/message-receiver":2,"../../common/message-utils":3,"../../common/path-params":4,"../debug":5,"../log":13,"../util":20,"../websocket":21,"./base-connection-decorator":6,"assert":22,"events":23,"inherits":27}],11:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -965,7 +1009,7 @@ if (typeof global.jQuery !== "undefined") {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../../common/path-params":4}],11:[function(require,module,exports){
+},{"../../common/path-params":4}],12:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1021,7 +1065,7 @@ exports.decorate = function (factory, options) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../../common/path-params":4}],12:[function(require,module,exports){
+},{"../../common/path-params":4}],13:[function(require,module,exports){
 /*eslint-disable no-console*/
 "use strict";
 
@@ -1033,7 +1077,7 @@ module.exports = function (msg) {
 
 module.exports.suppress = false;
 
-},{}],13:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1041,7 +1085,7 @@ var assert = require("assert");
 var log = require("./log");
 var token = require("./decorators/token");
 var subapp = require("./subapp");
-//const extendsession = require("./extendsession");
+var extendSession = require("./decorators/extend-session");
 var reconnect = require("./decorators/reconnect");
 var multiplex = require("./decorators/multiplex");
 var workerId = require("./decorators/worker-id");
@@ -1078,9 +1122,12 @@ var reconnectUI = new ReconnectUI();
 
 /**
  * options = {
- *   reconnect: false
- *   debugging: false
- *   extendsession: false
+ *   debugging: false,
+ *   extendSession: false,
+ *   reconnect: false,
+ *   subappTag: false,
+ *   token: false,
+ *   workerId: false
  * }
  *
  */
@@ -1093,9 +1140,6 @@ function initSession(shiny, options, shinyServer) {
   } else {
     (function () {
       // Not a subapp
-      // if (options.extendsession) {
-      //   extendsession.init();
-      // }
 
       var factory = sockjs.createFactory(options);
       if (options.workerId) {
@@ -1106,6 +1150,9 @@ function initSession(shiny, options, shinyServer) {
       }
       if (options.reconnect) {
         factory = reconnect.decorate(factory, options);
+      }
+      if (options.extendSession) {
+        factory = extendSession.decorate(factory, options);
       }
       factory = multiplex.decorate(factory, options);
 
@@ -1165,7 +1212,7 @@ global.preShinyInit = function (options) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./decorators/connection-context":7,"./decorators/multiplex":8,"./decorators/reconnect":9,"./decorators/token":10,"./decorators/worker-id":11,"./log":12,"./promised-connection":15,"./reconnect-ui":16,"./sockjs":17,"./subapp":18,"assert":21}],14:[function(require,module,exports){
+},{"./decorators/connection-context":7,"./decorators/extend-session":8,"./decorators/multiplex":9,"./decorators/reconnect":10,"./decorators/token":11,"./decorators/worker-id":12,"./log":13,"./promised-connection":16,"./reconnect-ui":17,"./sockjs":18,"./subapp":19,"assert":22}],15:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1372,7 +1419,7 @@ function parseMultiplexData(msg) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./debug":5,"./log":12}],15:[function(require,module,exports){
+},{"./debug":5,"./log":13}],16:[function(require,module,exports){
 "use strict";
 
 var util = require("./util");
@@ -1496,7 +1543,7 @@ Object.defineProperty(PromisedConnection.prototype, "extensions", {
   }
 });
 
-},{"./util":19,"./websocket":20}],16:[function(require,module,exports){
+},{"./util":20,"./websocket":21}],17:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1583,7 +1630,7 @@ ReconnectUI.prototype.showDisconnected = function () {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"events":22,"inherits":26}],17:[function(require,module,exports){
+},{"events":23,"inherits":27}],18:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1625,7 +1672,7 @@ exports.createFactory = function (options) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../common/path-params":4,"./log":12}],18:[function(require,module,exports){
+},{"../common/path-params":4,"./log":13}],19:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1648,7 +1695,7 @@ function createSocket() {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],19:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1804,7 +1851,7 @@ Object.defineProperty(PauseConnection.prototype, "extensions", {
 });
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./log":12,"pinkyswear":27}],20:[function(require,module,exports){
+},{"./log":13,"pinkyswear":28}],21:[function(require,module,exports){
 "use strict";
 
 // Constants from WebSocket and SockJS APIs.
@@ -1814,7 +1861,7 @@ exports.OPEN = 1;
 exports.CLOSING = 2;
 exports.CLOSED = 3;
 
-},{}],21:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
 // http://wiki.commonjs.org/wiki/Unit_Testing/1.0
 //
 // THIS IS NOT TESTED NOR LIKELY TO WORK OUTSIDE V8!
@@ -2175,7 +2222,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":25}],22:[function(require,module,exports){
+},{"util/":26}],23:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -2475,7 +2522,7 @@ function isUndefined(arg) {
   return arg === void 0;
 }
 
-},{}],23:[function(require,module,exports){
+},{}],24:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -2568,14 +2615,14 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],24:[function(require,module,exports){
+},{}],25:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],25:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -3165,7 +3212,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":24,"_process":23,"inherits":26}],26:[function(require,module,exports){
+},{"./support/isBuffer":25,"_process":24,"inherits":27}],27:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -3190,7 +3237,7 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],27:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 (function (process){
 /*
  * PinkySwear.js 2.2.2 - Minimalistic implementation of the Promises/A+ spec
@@ -3311,4 +3358,4 @@ if (typeof Object.create === 'function') {
 
 
 }).call(this,require('_process'))
-},{"_process":23}]},{},[13]);
+},{"_process":24}]},{},[14]);
