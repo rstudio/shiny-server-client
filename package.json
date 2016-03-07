@@ -8,7 +8,7 @@
     "test": "make test"
   },
   "author": "RStudio <node@rstudio.com>",
-  "license": "AGPL-3",
+  "license": "AGPL-3.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/rstudio/shiny-server-js"
@@ -24,7 +24,7 @@
     "babelify": "~7.2.0",
     "browserify": "~13.0",
     "chai": "~3.5",
-    "eslint": "^2.2.0",
+    "eslint": "~2.2.0",
     "mocha": "~2.4",
     "sinon": "~1.17",
     "uglify-js": "^2.6.2"
