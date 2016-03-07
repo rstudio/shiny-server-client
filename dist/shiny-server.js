@@ -377,6 +377,9 @@ function extendSession() {
 // * Reads from ctx: nothing
 exports.decorate = function (factory, options) {
   return function (url, ctx, callback) {
+
+    // Use this interval-id to shut down the interval when we lose our
+    // connection to the server.
     var extendSessionInterval = null;
 
     factory(url, ctx, function (err, conn) {
@@ -1127,7 +1130,10 @@ var reconnectUI = new ReconnectUI();
  *   reconnect: false,
  *   subappTag: false,
  *   token: false,
- *   workerId: false
+ *   workerId: false,
+ *
+ *   reconnectTimeout: 15000,
+ *   connectErrorDelay: 500
  * }
  *
  */
@@ -1209,6 +1215,14 @@ function initSession(shiny, options, shinyServer) {
 global.preShinyInit = function (options) {
   global.ShinyServer = global.ShinyServer || {};
   initSession(global.Shiny, options, global.ShinyServer);
+
+  /*eslint-disable no-console*/
+  global.Shiny.oncustommessage = function (message) {
+    if (typeof message === "string" && console.log) console.log(message); // Legacy format
+    if (message.alert && console.log) console.log(message.alert);
+    if (message.console && console.log) console.log(message.console);
+  };
+  /*eslint-enable no-console*/
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
