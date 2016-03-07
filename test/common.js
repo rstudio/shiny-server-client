@@ -21,10 +21,10 @@ function createConnFactoryMock(robust) {
       }, 0);
     },
     getConn: function() {
-      return conn
+      return conn;
     },
     // User-overrideable callback
-    onConnCreate: function(conn) {}
+    onConnCreate: function(connection) {}
   };
   return self;
 }

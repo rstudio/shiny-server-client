@@ -385,10 +385,10 @@ exports.decorate = function (factory, options) {
     }
 
     ctx.multiplexClient = {
-      open: function open(url) {
+      open: function open(relUrl) {
         var pc = new PromisedConnection();
         multiplexClientPromise.then(function (client) {
-          var urlWithParams = pathParams.addPathParams(url, { s: 1 });
+          var urlWithParams = pathParams.addPathParams(relUrl, { s: 1 });
           pc.resolve(null, client.open(urlWithParams));
         }).then(null, function (err) {
           pc.resolve(err);
@@ -879,10 +879,10 @@ BufferedResendConnection.prototype._handleReconnect = function () {
           _this3._conn.send(msg);
         });
       }
-    } catch (e) {
-      log("Error: RobustConnection handshake error: " + e);
-      log(e.stack);
-      _this3.close(3007, "RobustConnection handshake error: " + e);
+    } catch (err) {
+      log("Error: RobustConnection handshake error: " + err);
+      log(err.stack);
+      _this3.close(3007, "RobustConnection handshake error: " + err);
     }
   };
 };
@@ -897,10 +897,10 @@ BufferedResendConnection.prototype._handleMessage = function (e) {
       debug(ackResult + " message(s) discarded from buffer");
       return;
     }
-  } catch (e) {
-    log("Error: ACK handling failed: " + e);
-    log(e.stack);
-    this.close(3008, "ACK handling failed: " + e);
+  } catch (err) {
+    log("Error: ACK handling failed: " + err);
+    log(err.stack);
+    this.close(3008, "ACK handling failed: " + err);
     return;
   }
 
@@ -1116,6 +1116,8 @@ function initSession(shiny, options, shinyServer) {
 
         reconnectUI.hide();
 
+        var ctx = new ConnectionContext();
+
         var doReconnectHandler = function doReconnectHandler(_) {
           ctx.emit("do-reconnect");
         };
@@ -1125,7 +1127,6 @@ function initSession(shiny, options, shinyServer) {
           log("do-reconnect handlers are leaking!");
         }
 
-        var ctx = new ConnectionContext();
         ctx.on("reconnect-schedule", function (delay) {
           reconnectUI.showCountdown(delay);
         });
@@ -1455,6 +1456,8 @@ PromisedConnection.prototype.send = function (data) {
     throw new Error("Can't execute 'send' on 'WebSocket' when in CLOSED state.");
   } else if (this.readyState === WebSocket.CLOSING) {
     throw new Error("Can't execute 'send' on 'WebSocket' when in CLOSING state.");
+  } else {
+    throw new Error("Unexpected PromisedConnection readyState " + this.readyState);
   }
 };
 

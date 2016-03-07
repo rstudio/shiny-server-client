@@ -55,10 +55,10 @@ MessageBuffer.prototype.nextId = function() {
 MessageBuffer.prototype.getMessagesFrom = function(startId) {
   var from = startId - this._startIndex;
   if (from < 0) {
-    throw new Error("Message buffer underrun detected")
+    throw new Error("Message buffer underrun detected");
   }
   if (from > this._messages.length) {
-    throw new Error("Message id larger than expected")
+    throw new Error("Message id larger than expected");
   }
 
   return this._messages.slice(from);
