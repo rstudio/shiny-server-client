@@ -77,3 +77,32 @@ MockConnection.prototype.close = function(code, reason, wasClean) {
     wasClean: wasClean
   });
 };
+
+
+exports.TrivialConnection = TrivialConnection;
+function TrivialConnection() {
+  this.readyState = WebSocket.CONNECTING;
+  this.url = "http://localhost/websocket";
+  this.log = [];
+
+  this.onopen = function(e) {};
+  this.onclose = function(e) {};
+  this.onmessage = function(e) {};
+  this.onerror = function(e) {};
+}
+TrivialConnection.prototype.send = function(data) {
+  this.log.push({
+    type: "send",
+    data: data
+  });
+};
+TrivialConnection.prototype.close = function(code, reason) {
+  this.log.push({
+    type: "close",
+    data: {code: code, reason: reason}
+  });
+  this.onclose(util.createEvent("close", {
+    code: code,
+    reason: reason
+  }));
+};

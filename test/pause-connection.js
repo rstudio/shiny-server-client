@@ -3,39 +3,13 @@
 const assert = require("chai").assert;
 const util = require("../lib/util");
 const WebSocket = require("../lib/websocket");
+const TrivialConnection = require("./common").TrivialConnection;
 
 const PauseConnection = util.PauseConnection;
 
-// This will model the underlying connection that's
-// being paused.
-function TrivialConnection() {
-  this.readyState = WebSocket.CONNECTING;
-  this.url = "http://localhost/websocket";
-  this.log = [];
-
-  this.onopen = function(e) {};
-  this.onclose = function(e) {};
-  this.onmessage = function(e) {};
-  this.onerror = function(e) {};
-}
-TrivialConnection.prototype.send = function(data) {
-  this.log.push({
-    type: "send",
-    data: data
-  });
-};
-TrivialConnection.prototype.close = function(code, reason) {
-  this.log.push({
-    type: "close",
-    data: {code: code, reason: reason}
-  });
-  this.onclose(util.createEvent("close", {
-    code: code,
-    reason: reason
-  }));
-};
-
 describe("PauseConnection", () => {
+  // This will model the underlying connection that's
+  // being paused.
   let tc = new TrivialConnection();
   tc.protocol = "whatever";
   let pc = new PauseConnection(tc);
