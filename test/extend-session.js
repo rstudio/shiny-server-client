@@ -1,7 +1,6 @@
 "use strict";
 
 const assert = require("chai").assert;
-const WebSocket = require("../lib/websocket");
 const TrivialConnection = require("./common").TrivialConnection;
 const ConnectionContext = require("../lib/decorators/connection-context");
 
