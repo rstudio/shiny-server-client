@@ -355,7 +355,7 @@ function ConnectionContext() {
 }
 inherits(ConnectionContext, EventEmitter);
 
-},{"events":26,"inherits":30}],8:[function(require,module,exports){
+},{"events":26,"inherits":27}],8:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -363,9 +363,9 @@ var BaseConnectionDecorator = require("./base-connection-decorator");
 var debug = require("../debug");
 
 function extendSession() {
-  global.jQuery.ajax("__extendsession__", { type: "POST", async: true }).done(function (_) {
+  global.jQuery.ajax("__extendsession__", { type: "POST", async: true }).done(function () {
     debug("__extendsession__ succeeded");
-  }).fail(function (_) {
+  }).fail(function () {
     debug("__extendsession__ failed");
   });
 }
@@ -678,7 +678,7 @@ RobustConnection.prototype._connect = function (timeoutMillis) {
   // Because it uses promisify_p, a successful resolve of the promise
   // means not only that the connection was created, but also entered
   // the WebSocket.OPEN state.
-  var open_p = function open_p(_) {
+  var open_p = function open_p() {
     var params = {};
     params[_this.readyState === WebSocket.CONNECTING ? "n" : "o"] = _this._robustId;
     var url = pathParams.addPathParams(_this._url, params);
@@ -687,7 +687,7 @@ RobustConnection.prototype._connect = function (timeoutMillis) {
     var connectErrorDelay = _this._connectErrorDelay;
     _this._factory(url, _this._ctx, function (err, conn) {
       if (err) {
-        setTimeout(function (_) {
+        setTimeout(function () {
           promise(false, [err]);
         }, connectErrorDelay);
         return;
@@ -712,13 +712,13 @@ RobustConnection.prototype._connect = function (timeoutMillis) {
     progressCallbacks.on("schedule", function (delay) {
       _this._ctx.emit("reconnect-schedule", delay);
     });
-    progressCallbacks.on("attempt", function (_) {
+    progressCallbacks.on("attempt", function () {
       _this._ctx.emit("reconnect-attempt");
     });
-    progressCallbacks.on("success", function (_) {
+    progressCallbacks.on("success", function () {
       _this._ctx.emit("reconnect-success");
     });
-    progressCallbacks.on("failure", function (_) {
+    progressCallbacks.on("failure", function () {
       _this._ctx.emit("reconnect-failure");
     });
   }
@@ -866,7 +866,7 @@ function BufferedResendConnection(conn) {
 
   this._messageBuffer = new MessageBuffer();
   this._messageReceiver = new MessageReceiver();
-  this._messageReceiver.onacktimeout = function (_) {
+  this._messageReceiver.onacktimeout = function () {
     if (_this2._conn.readyState === WebSocket.OPEN && !_this2._disconnected) {
       _this2._conn.send(_this2._messageReceiver.ACK());
     }
@@ -973,7 +973,7 @@ BufferedResendConnection.prototype.send = function (data) {
   if (!this._disconnected) this._conn.send(data);
 };
 
-},{"../../common/message-buffer":1,"../../common/message-receiver":2,"../../common/message-utils":3,"../../common/path-params":4,"../debug":5,"../log":14,"../util":23,"../websocket":24,"./base-connection-decorator":6,"assert":25,"events":26,"inherits":30}],11:[function(require,module,exports){
+},{"../../common/message-buffer":1,"../../common/message-receiver":2,"../../common/message-utils":3,"../../common/path-params":4,"../debug":5,"../log":14,"../util":23,"../websocket":24,"./base-connection-decorator":6,"assert":25,"events":26,"inherits":27}],11:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1180,7 +1180,7 @@ var reconnectUI = new ReconnectUI();
 function initSession(shiny, options, shinyServer) {
 
   if (subapp.isSubApp()) {
-    shiny.createSocket = function (_) {
+    shiny.createSocket = function () {
       return subapp.createSocket();
     };
   } else {
@@ -1203,7 +1203,7 @@ function initSession(shiny, options, shinyServer) {
       factory = multiplex.decorate(factory, options);
 
       // Register the connection with Shiny.createSocket, etc.
-      shiny.createSocket = function (_) {
+      shiny.createSocket = function () {
         var url = location.protocol + "//" + location.host + location.pathname.replace(/\/[^\/]*$/, "");
         url += "/__sockjs__/";
 
@@ -1211,7 +1211,7 @@ function initSession(shiny, options, shinyServer) {
 
         var ctx = new ConnectionContext();
 
-        var doReconnectHandler = function doReconnectHandler(_) {
+        var doReconnectHandler = function doReconnectHandler() {
           ctx.emit("do-reconnect");
         };
 
@@ -1223,14 +1223,14 @@ function initSession(shiny, options, shinyServer) {
         ctx.on("reconnect-schedule", function (delay) {
           reconnectUI.showCountdown(delay);
         });
-        ctx.on("reconnect-attempt", function (_) {
+        ctx.on("reconnect-attempt", function () {
           reconnectUI.showAttempting();
         });
-        ctx.on("reconnect-success", function (_) {
+        ctx.on("reconnect-success", function () {
           reconnectUI.hide();
         });
 
-        var onDisconnected = function onDisconnected(_) {
+        var onDisconnected = function onDisconnected() {
           reconnectUI.removeListener("do-reconnect", doReconnectHandler);
           reconnectUI.showDisconnected();
         };
@@ -1254,7 +1254,7 @@ function initSession(shiny, options, shinyServer) {
 
 global.preShinyInit = function (options) {
   if (options.fixupInternalLinks && !subapp.isSubApp()) {
-    global.jQuery(function (_) {
+    global.jQuery(function () {
       fixupInternalLinks();
     });
   }
@@ -1338,9 +1338,9 @@ function MultiplexClient(conn) {
   // A list of functions that fire when our connection goes away.
   this.onclose = [];
 
-  this._conn.onopen = function (_) {
+  this._conn.onopen = function () {
     log("Connection opened. " + global.location.href);
-    var channel = void 0;
+    var channel = undefined;
     while (channel = _this._pendingChannels.shift()) {
       // Be sure to check readyState so we don't open connections for
       // channels that were closed before they finished opening
@@ -1400,12 +1400,12 @@ MultiplexClient.prototype.open = function (url) {
       this._pendingChannels.push(channel);
       break;
     case 1:
-      setTimeout(function (_) {
+      setTimeout(function () {
         channel._open();
       }, 0);
       break;
     default:
-      setTimeout(function (_) {
+      setTimeout(function () {
         channel.close();
       }, 0);
       break;
@@ -1462,7 +1462,7 @@ MultiplexClientChannel.prototype._destroy = function (e) {
   if (this.readyState !== 3) {
     this.readyState = 3;
     debug("Channel " + this.id + " is closed");
-    setTimeout(function (_) {
+    setTimeout(function () {
       _this2._owner.removeChannel(_this2.id);
       if (_this2.onclose) _this2.onclose(e);
     }, 0);
@@ -1572,7 +1572,7 @@ PromisedConnection.prototype.close = function (code, reason) {
     // are optional.
     this._conn.close.apply(this._conn, arguments);
   } else {
-    setTimeout(function (_) {
+    setTimeout(function () {
       if (_this2.onclose) {
         var evt = util.createEvent("close", {
           currentTarget: _this2,
@@ -1783,7 +1783,7 @@ function ReconnectUI() {
 
   EventEmitter.call(this);
 
-  $(function (_) {
+  $(function () {
     var dialog = $('<div id="ss-connect-dialog" style="display: none;"></div><div id="ss-overlay" class="ss-gray-out" style="display: none;"></div>');
     dialog.appendTo('body');
 
@@ -1854,7 +1854,7 @@ ReconnectUI.prototype.showDisconnected = function () {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"events":26,"inherits":30}],20:[function(require,module,exports){
+},{"events":26,"inherits":27}],20:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -2020,7 +2020,7 @@ exports.createNiceBackoffDelayFunc = function () {
 // "failure"                // Called if retryPromise_p ends in failure
 exports.retryPromise_p = function (create_p, delayFunc, expiration, progressCallbacks) {
 
-  if (!progressCallbacks) progressCallbacks = { emit: function emit(_) {} };
+  if (!progressCallbacks) progressCallbacks = { emit: function emit() {} };
 
   var promise = exports.promise();
 
@@ -2082,19 +2082,41 @@ exports.promise = function () {
   return pinkySwear(addDone);
 };
 
+// PauseConnection is similar to pauseable streams
+// in Node.js; used to delay events in case the
+// process of registering event handlers has some
+// asynchronicity to it. In our case, returning a
+// connection as a promise means that whoever is
+// waiting on the promise won't get a chance to
+// register event listeners until at least one trip
+// through the event loop.
+//
+// PauseConnection instances start out in the paused
+// state, and must be manually resumed with .resume().
+// The readyState is also paused, to ensure that it
+// is in sync with the events (i.e. it'd be weird to
+// see a connection transition to OPEN without onopen)
+// but it is debatable whether this is more correct
+// than having readyState always reflect the actual
+// state of the underlying connection, because the
+// underlying state is more relevant when it comes to
+// calling send()/close() on this connection (which
+// pass straight through to the underlying connection).
 exports.PauseConnection = PauseConnection;
 function PauseConnection(conn) {
   this._conn = conn;
   this._paused = true;
   this._events = [];
   this._timeout = null;
+  this.readyState = conn.readyState;
 
   var pauseConnection = this;
   ["onopen", "onmessage", "onerror", "onclose"].forEach(function (evt) {
     conn[evt] = function () {
       if (pauseConnection._paused) {
-        pauseConnection._events.push({ event: evt, args: arguments });
+        pauseConnection._events.push({ event: evt, args: arguments, readyState: conn.readyState });
       } else {
+        this.readyState = conn.readyState;
         pauseConnection[evt].apply(this, arguments);
       }
     };
@@ -2104,9 +2126,10 @@ function PauseConnection(conn) {
 PauseConnection.prototype.resume = function () {
   var _this = this;
 
-  this._timeout = setTimeout(function (_) {
+  this._timeout = setTimeout(function () {
     while (_this._events.length) {
       var e = _this._events.shift();
+      _this.readyState = e.readyState;
       _this[e.event].apply(_this, e.args);
     }
     _this._paused = false;
@@ -2124,29 +2147,24 @@ PauseConnection.prototype.send = function () {
   this._conn.send.apply(this._conn, arguments);
 };
 
-Object.defineProperty(PauseConnection.prototype, "readyState", {
-  get: function readyState() {
-    return this._conn.readyState;
-  }
-});
 Object.defineProperty(PauseConnection.prototype, "url", {
-  get: function readyState() {
+  get: function get() {
     return this._conn.url;
   }
 });
 Object.defineProperty(PauseConnection.prototype, "protocol", {
-  get: function readyState() {
+  get: function get() {
     return this._conn.protocol;
   }
 });
 Object.defineProperty(PauseConnection.prototype, "extensions", {
-  get: function readyState() {
+  get: function get() {
     return this._conn.extensions;
   }
 });
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./log":14,"pinkyswear":31}],24:[function(require,module,exports){
+},{"./log":14,"pinkyswear":28}],24:[function(require,module,exports){
 "use strict";
 
 // Constants from WebSocket and SockJS APIs.
@@ -2517,7 +2535,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":29}],26:[function(require,module,exports){
+},{"util/":31}],26:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -2818,6 +2836,152 @@ function isUndefined(arg) {
 }
 
 },{}],27:[function(require,module,exports){
+if (typeof Object.create === 'function') {
+  // implementation from standard node.js 'util' module
+  module.exports = function inherits(ctor, superCtor) {
+    ctor.super_ = superCtor
+    ctor.prototype = Object.create(superCtor.prototype, {
+      constructor: {
+        value: ctor,
+        enumerable: false,
+        writable: true,
+        configurable: true
+      }
+    });
+  };
+} else {
+  // old school shim for old browsers
+  module.exports = function inherits(ctor, superCtor) {
+    ctor.super_ = superCtor
+    var TempCtor = function () {}
+    TempCtor.prototype = superCtor.prototype
+    ctor.prototype = new TempCtor()
+    ctor.prototype.constructor = ctor
+  }
+}
+
+},{}],28:[function(require,module,exports){
+(function (process){
+/*
+ * PinkySwear.js 2.2.2 - Minimalistic implementation of the Promises/A+ spec
+ * 
+ * Public Domain. Use, modify and distribute it any way you like. No attribution required.
+ *
+ * NO WARRANTY EXPRESSED OR IMPLIED. USE AT YOUR OWN RISK.
+ *
+ * PinkySwear is a very small implementation of the Promises/A+ specification. After compilation with the
+ * Google Closure Compiler and gzipping it weighs less than 500 bytes. It is based on the implementation for 
+ * Minified.js and should be perfect for embedding. 
+ *
+ *
+ * PinkySwear has just three functions.
+ *
+ * To create a new promise in pending state, call pinkySwear():
+ *         var promise = pinkySwear();
+ *
+ * The returned object has a Promises/A+ compatible then() implementation:
+ *          promise.then(function(value) { alert("Success!"); }, function(value) { alert("Failure!"); });
+ *
+ *
+ * The promise returned by pinkySwear() is a function. To fulfill the promise, call the function with true as first argument and
+ * an optional array of values to pass to the then() handler. By putting more than one value in the array, you can pass more than one
+ * value to the then() handlers. Here an example to fulfill a promsise, this time with only one argument: 
+ *         promise(true, [42]);
+ *
+ * When the promise has been rejected, call it with false. Again, there may be more than one argument for the then() handler:
+ *         promise(true, [6, 6, 6]);
+ *         
+ * You can obtain the promise's current state by calling the function without arguments. It will be true if fulfilled,
+ * false if rejected, and otherwise undefined.
+ * 		   var state = promise(); 
+ * 
+ * https://github.com/timjansen/PinkySwear.js
+ */
+(function(target) {
+	var undef;
+
+	function isFunction(f) {
+		return typeof f == 'function';
+	}
+	function isObject(f) {
+		return typeof f == 'object';
+	}
+	function defer(callback) {
+		if (typeof setImmediate != 'undefined')
+			setImmediate(callback);
+		else if (typeof process != 'undefined' && process['nextTick'])
+			process['nextTick'](callback);
+		else
+			setTimeout(callback, 0);
+	}
+
+	target[0][target[1]] = function pinkySwear(extend) {
+		var state;           // undefined/null = pending, true = fulfilled, false = rejected
+		var values = [];     // an array of values as arguments for the then() handlers
+		var deferred = [];   // functions to call when set() is invoked
+
+		var set = function(newState, newValues) {
+			if (state == null && newState != null) {
+				state = newState;
+				values = newValues;
+				if (deferred.length)
+					defer(function() {
+						for (var i = 0; i < deferred.length; i++)
+							deferred[i]();
+					});
+			}
+			return state;
+		};
+
+		set['then'] = function (onFulfilled, onRejected) {
+			var promise2 = pinkySwear(extend);
+			var callCallbacks = function() {
+	    		try {
+	    			var f = (state ? onFulfilled : onRejected);
+	    			if (isFunction(f)) {
+		   				function resolve(x) {
+						    var then, cbCalled = 0;
+		   					try {
+				   				if (x && (isObject(x) || isFunction(x)) && isFunction(then = x['then'])) {
+										if (x === promise2)
+											throw new TypeError();
+										then['call'](x,
+											function() { if (!cbCalled++) resolve.apply(undef,arguments); } ,
+											function(value){ if (!cbCalled++) promise2(false,[value]);});
+				   				}
+				   				else
+				   					promise2(true, arguments);
+		   					}
+		   					catch(e) {
+		   						if (!cbCalled++)
+		   							promise2(false, [e]);
+		   					}
+		   				}
+		   				resolve(f.apply(undef, values || []));
+		   			}
+		   			else
+		   				promise2(state, values);
+				}
+				catch (e) {
+					promise2(false, [e]);
+				}
+			};
+			if (state != null)
+				defer(callCallbacks);
+			else
+				deferred.push(callCallbacks);
+			return promise2;
+		};
+        if(extend){
+            set = extend(set);
+        }
+		return set;
+	};
+})(typeof module == 'undefined' ? [window, 'pinkySwear'] : [module, 'exports']);
+
+
+}).call(this,require('_process'))
+},{"_process":29}],29:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -2910,14 +3074,14 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],28:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],29:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -3507,150 +3671,4 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":28,"_process":27,"inherits":30}],30:[function(require,module,exports){
-if (typeof Object.create === 'function') {
-  // implementation from standard node.js 'util' module
-  module.exports = function inherits(ctor, superCtor) {
-    ctor.super_ = superCtor
-    ctor.prototype = Object.create(superCtor.prototype, {
-      constructor: {
-        value: ctor,
-        enumerable: false,
-        writable: true,
-        configurable: true
-      }
-    });
-  };
-} else {
-  // old school shim for old browsers
-  module.exports = function inherits(ctor, superCtor) {
-    ctor.super_ = superCtor
-    var TempCtor = function () {}
-    TempCtor.prototype = superCtor.prototype
-    ctor.prototype = new TempCtor()
-    ctor.prototype.constructor = ctor
-  }
-}
-
-},{}],31:[function(require,module,exports){
-(function (process){
-/*
- * PinkySwear.js 2.2.2 - Minimalistic implementation of the Promises/A+ spec
- * 
- * Public Domain. Use, modify and distribute it any way you like. No attribution required.
- *
- * NO WARRANTY EXPRESSED OR IMPLIED. USE AT YOUR OWN RISK.
- *
- * PinkySwear is a very small implementation of the Promises/A+ specification. After compilation with the
- * Google Closure Compiler and gzipping it weighs less than 500 bytes. It is based on the implementation for 
- * Minified.js and should be perfect for embedding. 
- *
- *
- * PinkySwear has just three functions.
- *
- * To create a new promise in pending state, call pinkySwear():
- *         var promise = pinkySwear();
- *
- * The returned object has a Promises/A+ compatible then() implementation:
- *          promise.then(function(value) { alert("Success!"); }, function(value) { alert("Failure!"); });
- *
- *
- * The promise returned by pinkySwear() is a function. To fulfill the promise, call the function with true as first argument and
- * an optional array of values to pass to the then() handler. By putting more than one value in the array, you can pass more than one
- * value to the then() handlers. Here an example to fulfill a promsise, this time with only one argument: 
- *         promise(true, [42]);
- *
- * When the promise has been rejected, call it with false. Again, there may be more than one argument for the then() handler:
- *         promise(true, [6, 6, 6]);
- *         
- * You can obtain the promise's current state by calling the function without arguments. It will be true if fulfilled,
- * false if rejected, and otherwise undefined.
- * 		   var state = promise(); 
- * 
- * https://github.com/timjansen/PinkySwear.js
- */
-(function(target) {
-	var undef;
-
-	function isFunction(f) {
-		return typeof f == 'function';
-	}
-	function isObject(f) {
-		return typeof f == 'object';
-	}
-	function defer(callback) {
-		if (typeof setImmediate != 'undefined')
-			setImmediate(callback);
-		else if (typeof process != 'undefined' && process['nextTick'])
-			process['nextTick'](callback);
-		else
-			setTimeout(callback, 0);
-	}
-
-	target[0][target[1]] = function pinkySwear(extend) {
-		var state;           // undefined/null = pending, true = fulfilled, false = rejected
-		var values = [];     // an array of values as arguments for the then() handlers
-		var deferred = [];   // functions to call when set() is invoked
-
-		var set = function(newState, newValues) {
-			if (state == null && newState != null) {
-				state = newState;
-				values = newValues;
-				if (deferred.length)
-					defer(function() {
-						for (var i = 0; i < deferred.length; i++)
-							deferred[i]();
-					});
-			}
-			return state;
-		};
-
-		set['then'] = function (onFulfilled, onRejected) {
-			var promise2 = pinkySwear(extend);
-			var callCallbacks = function() {
-	    		try {
-	    			var f = (state ? onFulfilled : onRejected);
-	    			if (isFunction(f)) {
-		   				function resolve(x) {
-						    var then, cbCalled = 0;
-		   					try {
-				   				if (x && (isObject(x) || isFunction(x)) && isFunction(then = x['then'])) {
-										if (x === promise2)
-											throw new TypeError();
-										then['call'](x,
-											function() { if (!cbCalled++) resolve.apply(undef,arguments); } ,
-											function(value){ if (!cbCalled++) promise2(false,[value]);});
-				   				}
-				   				else
-				   					promise2(true, arguments);
-		   					}
-		   					catch(e) {
-		   						if (!cbCalled++)
-		   							promise2(false, [e]);
-		   					}
-		   				}
-		   				resolve(f.apply(undef, values || []));
-		   			}
-		   			else
-		   				promise2(state, values);
-				}
-				catch (e) {
-					promise2(false, [e]);
-				}
-			};
-			if (state != null)
-				defer(callCallbacks);
-			else
-				deferred.push(callCallbacks);
-			return promise2;
-		};
-        if(extend){
-            set = extend(set);
-        }
-		return set;
-	};
-})(typeof module == 'undefined' ? [window, 'pinkySwear'] : [module, 'exports']);
-
-
-}).call(this,require('_process'))
-},{"_process":27}]},{},[15]);
+},{"./support/isBuffer":30,"_process":29,"inherits":27}]},{},[15]);

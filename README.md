@@ -27,13 +27,22 @@ npm install
 Build targets:
 
 ```
-make        # Build client and minify
-make build  # Build client but don't minify
+make        # Build client, minify, and lint
+make build  # Build client and minify, but don't lint
 make test   # Run mocha tests (DOESN'T build)
-make clean
+make lint   # Lint
+make clean  # Delete build artifacts
 ```
 
 Be sure to run `make` before commiting changes to `lib` or `common`! If your code changes are not reflected in the build artifacts, they won't be picked up by the servers.
+
+You can run Mocha in "watch" mode if you have an ES6-compatible version of Node (i.e. not v0.10.x, which is what Shiny Server and Shiny Server Pro use at the time of this writing):
+
+```
+node_modules/.bin/mocha -w --reporter dot
+```
+
+Running mocha directly is much faster than `make test` because the latter runs the test code through babel, in order to support ES6 on Node v0.10.x.
 
 ### Project layout
 

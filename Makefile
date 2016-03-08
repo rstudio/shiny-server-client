@@ -4,7 +4,7 @@ REPORTER = list
 
 all: dist/shiny-server.min.js lint
 
-build: dist/shiny-server.js
+build: dist/shiny-server.min.js
 
 dist/shiny-server.js: $(JSFILES)
 	mkdir -p dist
