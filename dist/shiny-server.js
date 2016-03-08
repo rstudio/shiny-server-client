@@ -267,7 +267,7 @@ exports.extractParams = function (url) {
   return result;
 };
 
-},{"assert":22}],5:[function(require,module,exports){
+},{"assert":23}],5:[function(require,module,exports){
 /*eslint-disable no-console*/
 "use strict";
 
@@ -355,7 +355,7 @@ function ConnectionContext() {
 }
 inherits(ConnectionContext, EventEmitter);
 
-},{"events":23,"inherits":27}],8:[function(require,module,exports){
+},{"events":24,"inherits":28}],8:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -467,7 +467,7 @@ exports.decorate = function (factory, options) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../../common/path-params":4,"../multiplex-client":15,"../promised-connection":16,"../util":20}],10:[function(require,module,exports){
+},{"../../common/path-params":4,"../multiplex-client":16,"../promised-connection":17,"../util":21}],10:[function(require,module,exports){
 "use strict";
 
 var assert = require("assert");
@@ -973,7 +973,7 @@ BufferedResendConnection.prototype.send = function (data) {
   if (!this._disconnected) this._conn.send(data);
 };
 
-},{"../../common/message-buffer":1,"../../common/message-receiver":2,"../../common/message-utils":3,"../../common/path-params":4,"../debug":5,"../log":13,"../util":20,"../websocket":21,"./base-connection-decorator":6,"assert":22,"events":23,"inherits":27}],11:[function(require,module,exports){
+},{"../../common/message-buffer":1,"../../common/message-receiver":2,"../../common/message-utils":3,"../../common/path-params":4,"../debug":5,"../log":14,"../util":21,"../websocket":22,"./base-connection-decorator":6,"assert":23,"events":24,"inherits":28}],11:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1069,6 +1069,42 @@ exports.decorate = function (factory, options) {
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"../../common/path-params":4}],13:[function(require,module,exports){
+"use strict";
+
+var assert = require("assert");
+
+module.exports = fixupUrl;
+
+function fixupUrl(href, location) {
+  var origHref = href;
+  // Strip the worker out of the href
+  href = href.replace(/\/_w_[a-f0-9]+\//g, "/");
+  if (href === origHref) {
+    // Must not have been a relative URL, or base href isn't in effect.
+    return origHref;
+  }
+
+  var m = /^([^#?]*)(\?[^#]*)?(#.*)?$/.exec(href);
+  assert(m);
+  var base = m[1] || "";
+  var search = m[2] || "";
+  var hash = m[3] || "";
+
+  if (base !== location.origin + location.pathname) {
+    return origHref;
+  }
+
+  if (!search) {
+    // href doesn't include the query string, which means that if one is
+    // present (e.g. ?rscembedded=1) anchor links will be labeled page changes
+    // by the browser, triggering a reload (and perhaps nested toolbars).
+    search = location.search;
+  }
+
+  return base + search + hash;
+}
+
+},{"assert":23}],14:[function(require,module,exports){
 /*eslint-disable no-console*/
 "use strict";
 
@@ -1080,11 +1116,12 @@ module.exports = function (msg) {
 
 module.exports.suppress = false;
 
-},{}],14:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 (function (global){
 "use strict";
 
 var assert = require("assert");
+var fixupUrl = require("./fixup-url");
 var log = require("./log");
 var token = require("./decorators/token");
 var subapp = require("./subapp");
@@ -1127,6 +1164,7 @@ var reconnectUI = new ReconnectUI();
  * options = {
  *   debugging: false,
  *   extendSession: false,
+ *   fixupInternalLinks: false,
  *   reconnect: false,
  *   subappTag: false,
  *   token: false,
@@ -1223,10 +1261,42 @@ global.preShinyInit = function (options) {
     if (message.console && console.log) console.log(message.console);
   };
   /*eslint-enable no-console*/
+
+  if (options.fixupInternalLinks && !subapp.isSubApp()) {
+    global.jQuery(function (_) {
+      fixupInternalLinks();
+    });
+  }
 };
 
+global.fixupInternalLinks = fixupInternalLinks;
+function fixupInternalLinks() {
+  global.jQuery("body").on("click", "a", function (ev) {
+    // We don't scrub links from subapps because a.) We need to make sure that
+    // everything (even relative links) stick to the same worker, as this app
+    // doesn't exist on another worker, and b.) because we don't care about the
+    // side-effect of creating a big mess in the URL bar, since it's just an
+    // iframe and won't be visible anyway.
+    assert(!subapp.isSubApp());
+
+    // setting /any/ value to ev.target.href (even assigning it to itself) would
+    // have the side-effect of creating a real value in that property, even if
+    // one shouldn't exist
+    if (ev.currentTarget.href === null || !ev.currentTarget.href) {
+      return;
+    }
+
+    var href = fixupUrl(ev.currentTarget.href, global.location);
+    if (href === ev.currentTarget.href) {
+      // Must not have been a relative URL, or base href isn't in effect.
+      return;
+    }
+    ev.currentTarget.href = href;
+  });
+}
+
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./decorators/connection-context":7,"./decorators/extend-session":8,"./decorators/multiplex":9,"./decorators/reconnect":10,"./decorators/token":11,"./decorators/worker-id":12,"./log":13,"./promised-connection":16,"./reconnect-ui":17,"./sockjs":18,"./subapp":19,"assert":22}],15:[function(require,module,exports){
+},{"./decorators/connection-context":7,"./decorators/extend-session":8,"./decorators/multiplex":9,"./decorators/reconnect":10,"./decorators/token":11,"./decorators/worker-id":12,"./fixup-url":13,"./log":14,"./promised-connection":17,"./reconnect-ui":18,"./sockjs":19,"./subapp":20,"assert":23}],16:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1433,7 +1503,7 @@ function parseMultiplexData(msg) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./debug":5,"./log":13}],16:[function(require,module,exports){
+},{"./debug":5,"./log":14}],17:[function(require,module,exports){
 "use strict";
 
 var util = require("./util");
@@ -1557,7 +1627,7 @@ Object.defineProperty(PromisedConnection.prototype, "extensions", {
   }
 });
 
-},{"./util":20,"./websocket":21}],17:[function(require,module,exports){
+},{"./util":21,"./websocket":22}],18:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1644,7 +1714,7 @@ ReconnectUI.prototype.showDisconnected = function () {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"events":23,"inherits":27}],18:[function(require,module,exports){
+},{"events":24,"inherits":28}],19:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1686,7 +1756,7 @@ exports.createFactory = function (options) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../common/path-params":4,"./log":13}],19:[function(require,module,exports){
+},{"../common/path-params":4,"./log":14}],20:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1709,7 +1779,7 @@ function createSocket() {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],20:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1865,7 +1935,7 @@ Object.defineProperty(PauseConnection.prototype, "extensions", {
 });
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./log":13,"pinkyswear":28}],21:[function(require,module,exports){
+},{"./log":14,"pinkyswear":29}],22:[function(require,module,exports){
 "use strict";
 
 // Constants from WebSocket and SockJS APIs.
@@ -1875,7 +1945,7 @@ exports.OPEN = 1;
 exports.CLOSING = 2;
 exports.CLOSED = 3;
 
-},{}],22:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 // http://wiki.commonjs.org/wiki/Unit_Testing/1.0
 //
 // THIS IS NOT TESTED NOR LIKELY TO WORK OUTSIDE V8!
@@ -2236,7 +2306,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":26}],23:[function(require,module,exports){
+},{"util/":27}],24:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -2536,7 +2606,7 @@ function isUndefined(arg) {
   return arg === void 0;
 }
 
-},{}],24:[function(require,module,exports){
+},{}],25:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -2629,14 +2699,14 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],25:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],26:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -3226,7 +3296,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":25,"_process":24,"inherits":27}],27:[function(require,module,exports){
+},{"./support/isBuffer":26,"_process":25,"inherits":28}],28:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -3251,7 +3321,7 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],28:[function(require,module,exports){
+},{}],29:[function(require,module,exports){
 (function (process){
 /*
  * PinkySwear.js 2.2.2 - Minimalistic implementation of the Promises/A+ spec
@@ -3372,4 +3442,4 @@ if (typeof Object.create === 'function') {
 
 
 }).call(this,require('_process'))
-},{"_process":24}]},{},[14]);
+},{"_process":25}]},{},[15]);

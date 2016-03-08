@@ -1,6 +1,6 @@
 "use strict";
 
-const assert = require("assert");
+const assert = require("chai").assert;
 const pathParams = require("../common/path-params");
 
 describe("Path parameters", _ => {
