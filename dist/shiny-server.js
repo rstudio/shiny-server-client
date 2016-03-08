@@ -267,7 +267,7 @@ exports.extractParams = function (url) {
   return result;
 };
 
-},{"assert":23}],5:[function(require,module,exports){
+},{"assert":24}],5:[function(require,module,exports){
 /*eslint-disable no-console*/
 "use strict";
 
@@ -355,7 +355,7 @@ function ConnectionContext() {
 }
 inherits(ConnectionContext, EventEmitter);
 
-},{"events":24,"inherits":28}],8:[function(require,module,exports){
+},{"events":25,"inherits":29}],8:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -467,7 +467,7 @@ exports.decorate = function (factory, options) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../../common/path-params":4,"../multiplex-client":16,"../promised-connection":17,"../util":21}],10:[function(require,module,exports){
+},{"../../common/path-params":4,"../multiplex-client":16,"../promised-connection":17,"../util":22}],10:[function(require,module,exports){
 "use strict";
 
 var assert = require("assert");
@@ -973,7 +973,7 @@ BufferedResendConnection.prototype.send = function (data) {
   if (!this._disconnected) this._conn.send(data);
 };
 
-},{"../../common/message-buffer":1,"../../common/message-receiver":2,"../../common/message-utils":3,"../../common/path-params":4,"../debug":5,"../log":14,"../util":21,"../websocket":22,"./base-connection-decorator":6,"assert":23,"events":24,"inherits":28}],11:[function(require,module,exports){
+},{"../../common/message-buffer":1,"../../common/message-receiver":2,"../../common/message-utils":3,"../../common/path-params":4,"../debug":5,"../log":14,"../util":22,"../websocket":23,"./base-connection-decorator":6,"assert":24,"events":25,"inherits":29}],11:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1104,7 +1104,7 @@ function fixupUrl(href, location) {
   return base + search + hash;
 }
 
-},{"assert":23}],14:[function(require,module,exports){
+},{"assert":24}],14:[function(require,module,exports){
 /*eslint-disable no-console*/
 "use strict";
 
@@ -1133,6 +1133,7 @@ var sockjs = require("./sockjs");
 var PromisedConnection = require("./promised-connection");
 var ConnectionContext = require("./decorators/connection-context");
 var ReconnectUI = require("./reconnect-ui");
+var ui = require("./ui");
 
 /*
 Connection factories:
@@ -1267,6 +1268,9 @@ global.preShinyInit = function (options) {
 
   /*eslint-disable no-console*/
   global.Shiny.oncustommessage = function (message) {
+    if (message.license) ui.onLicense(global.Shiny, message.license);
+    if (message.credentials) ui.onLoggedIn(message.credentials);
+
     if (typeof message === "string" && console.log) console.log(message); // Legacy format
     if (message.alert && console.log) console.log(message.alert);
     if (message.console && console.log) console.log(message.console);
@@ -1301,7 +1305,7 @@ function fixupInternalLinks() {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./decorators/connection-context":7,"./decorators/extend-session":8,"./decorators/multiplex":9,"./decorators/reconnect":10,"./decorators/token":11,"./decorators/worker-id":12,"./fixup-url":13,"./log":14,"./promised-connection":17,"./reconnect-ui":18,"./sockjs":19,"./subapp":20,"assert":23}],16:[function(require,module,exports){
+},{"./decorators/connection-context":7,"./decorators/extend-session":8,"./decorators/multiplex":9,"./decorators/reconnect":10,"./decorators/token":11,"./decorators/worker-id":12,"./fixup-url":13,"./log":14,"./promised-connection":17,"./reconnect-ui":18,"./sockjs":19,"./subapp":20,"./ui":21,"assert":24}],16:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1632,7 +1636,7 @@ Object.defineProperty(PromisedConnection.prototype, "extensions", {
   }
 });
 
-},{"./util":21,"./websocket":22}],18:[function(require,module,exports){
+},{"./util":22,"./websocket":23}],18:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1719,7 +1723,7 @@ ReconnectUI.prototype.showDisconnected = function () {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"events":24,"inherits":28}],19:[function(require,module,exports){
+},{"events":25,"inherits":29}],19:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1785,6 +1789,66 @@ function createSocket() {
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{}],21:[function(require,module,exports){
+(function (global){
+"use strict";
+
+var $ = global.jQuery;
+
+exports.onLoggedIn = onLoggedIn;
+function onLoggedIn(credentials) {
+  if (!credentials) return;
+
+  var user = credentials.user;
+  var str = '<div class="shiny-server-account">' + '  Logged in as <span class="shiny-server-username"></span>';
+  if (credentials.strategy !== 'proxy-auth') {
+    str += '  <a href="__logout__">Logout</a>';
+  }
+  str += '</div>';
+  var div = $(str);
+  div.find('.shiny-server-username').text(user);
+  $('body').append(div);
+}
+
+function formatDate(date) {
+  if (!date) return '?/?/????';
+
+  var months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  return months[date.getMonth()] + ' ' + date.getDate() + ', ' + date.getFullYear();
+}
+
+exports.onLicense = onLicense;
+function onLicense(Shiny, license) {
+  if (!license) return;
+  if (license.status !== 'expired' && license.status !== 'grace') return;
+
+  var noun = license.evaluation ? 'evaluation' : 'license';
+  var message = 'Your Shiny Server ' + noun + ' expired';
+  if (license.expiration) message += ' on ' + formatDate(new Date(license.expiration));
+  message += '.';
+
+  if (license.status === 'expired') {
+    setTimeout(function () {
+      window.alert(message + '\n\n' + 'Please purchase and activate a license.');
+    }, 0);
+    if (Shiny && Shiny.shinyapp && Shiny.shinyapp.$socket) {
+      Shiny.shinyapp.$socket.close();
+    }
+  } else if (license.status === 'grace') {
+    $('.shiny-server-expired').remove();
+    var div = $('<div class="shiny-server-expired">' + 'WARNING: ' + message + '</div>');
+    $('body').append(div);
+    setTimeout(function () {
+      div.animate({
+        top: -(div.height() + 16 /* total vertical padding */)
+      }, 'slow', function () {
+        div.remove();
+      });
+    }, 8000);
+  }
+}
+
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{}],22:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1940,7 +2004,7 @@ Object.defineProperty(PauseConnection.prototype, "extensions", {
 });
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./log":14,"pinkyswear":29}],22:[function(require,module,exports){
+},{"./log":14,"pinkyswear":30}],23:[function(require,module,exports){
 "use strict";
 
 // Constants from WebSocket and SockJS APIs.
@@ -1950,7 +2014,7 @@ exports.OPEN = 1;
 exports.CLOSING = 2;
 exports.CLOSED = 3;
 
-},{}],23:[function(require,module,exports){
+},{}],24:[function(require,module,exports){
 // http://wiki.commonjs.org/wiki/Unit_Testing/1.0
 //
 // THIS IS NOT TESTED NOR LIKELY TO WORK OUTSIDE V8!
@@ -2311,7 +2375,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":27}],24:[function(require,module,exports){
+},{"util/":28}],25:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -2611,7 +2675,7 @@ function isUndefined(arg) {
   return arg === void 0;
 }
 
-},{}],25:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -2704,14 +2768,14 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],26:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],27:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -3301,7 +3365,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":26,"_process":25,"inherits":28}],28:[function(require,module,exports){
+},{"./support/isBuffer":27,"_process":26,"inherits":29}],29:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -3326,7 +3390,7 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],29:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 (function (process){
 /*
  * PinkySwear.js 2.2.2 - Minimalistic implementation of the Promises/A+ spec
@@ -3447,4 +3511,4 @@ if (typeof Object.create === 'function') {
 
 
 }).call(this,require('_process'))
-},{"_process":25}]},{},[15]);
+},{"_process":26}]},{},[15]);
