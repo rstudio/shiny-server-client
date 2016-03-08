@@ -8,7 +8,7 @@ const common = require("./common");
 
 let oldLocation;
 
-before(function() {
+before(() => {
   oldLocation = global.location;
   global.location = {
     search: "?foo=bar&w=deadbeef123&baz=qux"
@@ -16,11 +16,11 @@ before(function() {
 });
 
 // Restore old token
-after(function() {
+after(() => {
   global.location = oldLocation;
 });
 
-describe("Worker ID decorator", function() {
+describe("Worker ID decorator", () => {
   it("adds worker ID from URL search", function(done) {
     let fm = common.createConnFactoryMock(false);
 

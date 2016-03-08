@@ -9,7 +9,7 @@ const WebSocket = require("../lib/websocket");
 const ConnectionContext = require("../lib/decorators/connection-context");
 const common = require("./common");
 
-describe("Reconnect decorator", function() {
+describe("Reconnect decorator", () => {
 
   function createTestFactory() {
     let connFactoryMock = common.createConnFactoryMock(true);
@@ -39,7 +39,7 @@ describe("Reconnect decorator", function() {
       // The physical connection hasn't connected yet.
       assert.equal(conn.readyState, WebSocket.CONNECTING);
 
-      conn.onopen = function() {
+      conn.onopen = () => {
         // Physical connection has connected.
         assert.equal(conn.readyState, WebSocket.OPEN);
 
@@ -50,7 +50,7 @@ describe("Reconnect decorator", function() {
         setup.fm.getConn().close(1005, "", false); // wasClean == false
         assert.equal(conn.readyState, WebSocket.OPEN);
 
-        setTimeout(function() {
+        setTimeout(() => {
           assert.equal(conn.readyState, WebSocket.OPEN);
           assert.equal(setup.fm.getConn().readyState, WebSocket.OPEN);
 
@@ -90,9 +90,9 @@ describe("Reconnect decorator", function() {
       let errorWasCalled = false;
       let closeWasCalled = false;
 
-      conn.onopen = function() { openWasCalled = true; };
-      conn.onerror = function() { errorWasCalled = true; };
-      conn.onclose = function() {
+      conn.onopen = () => { openWasCalled = true; };
+      conn.onerror = () => { errorWasCalled = true; };
+      conn.onclose = () => {
         closeWasCalled = true;
         finish();
       };
@@ -143,11 +143,11 @@ describe("Reconnect decorator", function() {
       let errorWasCalled = false;
       let closeWasCalled = false;
 
-      conn.onopen = function() { openWasCalled = true; };
-      conn.onerror = function() { errorWasCalled = true; };
-      conn.onclose = function() { closeWasCalled = true; done(); };
+      conn.onopen = () => { openWasCalled = true; };
+      conn.onerror = () => { errorWasCalled = true; };
+      conn.onclose = () => { closeWasCalled = true; done(); };
 
-      setTimeout(function() {
+      setTimeout(() => {
         assert.equal(conn.readyState, WebSocket.OPEN);
         assert.equal(setup.fm.getConn().readyState, WebSocket.OPEN);
         assert.equal(openWasCalled, true);
@@ -167,7 +167,7 @@ describe("Reconnect decorator", function() {
         throw err;
       }
 
-      conn.onopen = function() {
+      conn.onopen = () => {
         conn.send("a");
         conn.send("b");
         conn.send("c");

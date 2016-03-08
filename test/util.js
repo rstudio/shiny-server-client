@@ -4,8 +4,8 @@ const assert = require("chai").assert;
 
 const util = require("../lib/util");
 
-describe("Nice backoff", function() {
-  it("is nice", function() {
+describe("Nice backoff", () => {
+  it("is nice", () => {
     let func = util.createNiceBackoffDelayFunc();
     let results = [];
     for (let i = 0; i < 10; i++) {

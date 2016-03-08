@@ -3,8 +3,8 @@
 const assert = require("chai").assert;
 const pathParams = require("../common/path-params");
 
-describe("Path parameters", _ => {
-  it("can be reordered", function() {
+describe("Path parameters", () => {
+  it("can be reordered", () => {
     assert.equal(
       pathParams.reorderPathParams("/__sockjs__/foo=bar/baz=/", ["baz", "foo"]),
       "/__sockjs__/baz=/foo=bar/"

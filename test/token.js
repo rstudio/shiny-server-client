@@ -10,10 +10,10 @@ let oldAjax;
 
 // Hijack the ajax requestor to always return "fizzbuzz"
 // on __token__ request
-before(function() {
+before(() => {
   oldAjax = token.ajax;
   token.ajax = function(url, options) {
-    setTimeout(function() {
+    setTimeout(() => {
       if (url === "__token__") {
         options.success("fizzbuzz", "OK");
       } else {
@@ -24,11 +24,11 @@ before(function() {
 });
 
 // Restore old token
-after(function() {
+after(() => {
   token.ajax = oldAjax;
 });
 
-describe("Token decorator", function() {
+describe("Token decorator", () => {
   it("adds token path-param", function(done) {
     let fm = common.createConnFactoryMock(false);
 

@@ -13,18 +13,18 @@ const common = require("./common");
 // Squelch log/debug messages during tests
 let logSuppress;
 let debugSuppress;
-before(function() {
+before(() => {
   logSuppress = log.suppress;
   log.suppress = true;
   debugSuppress = debug.suppress;
   debug.suppress = true;
 });
-after(function() {
+after(() => {
   log.suppress = logSuppress;
   debug.suppress = debugSuppress;
 });
 
-describe("Multiplex decorator", function() {
+describe("Multiplex decorator", () => {
   let fm = common.createConnFactoryMock(false);
   let factory = multiplex.decorate(fm.factory, {});
 
@@ -50,15 +50,15 @@ describe("Multiplex decorator", function() {
 
       let childConn1 = ctx.multiplexClient.open("/subapp1");
 
-      conn.onopen = function() {
+      conn.onopen = () => {
         conn.send("Hello world!");
-        setTimeout(function() {
+        setTimeout(() => {
           conn.close(3000, "Done for the day.");
           childConn1.close(3001, "Gone fishing.");
         }, 0);
       };
 
-      setTimeout(function() {
+      setTimeout(() => {
         assert.equal(
           JSON.stringify(fm.getConn().log),
           JSON.stringify(

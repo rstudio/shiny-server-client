@@ -16,11 +16,11 @@ function createConnFactoryMock(robust) {
     factory: function(url, ctx, callback) {
       conn = new MockConnection(this, url, ctx, true, robust);
       self.onConnCreate(conn);
-      setTimeout(function() {
+      setTimeout(() => {
         callback(null, conn);
       }, 0);
     },
-    getConn: function() {
+    getConn: () => {
       return conn;
     },
     // User-overrideable callback
@@ -36,11 +36,11 @@ function MockConnection(parent, url, ctx, open, robust) {
   this.robust = robust;
   this.sendContinue = false;
   this.log = [];
-  this.onopen = this.onclose = this.onmessage = this.onerror = function() {};
+  this.onopen = this.onclose = this.onmessage = this.onerror = () => {};
   this.readyState = WebSocket.CONNECTING;
 
   if (open) {
-    setTimeout(_ => {
+    setTimeout(() => {
       if (this.readyState === WebSocket.CONNECTING) {
         this.readyState = WebSocket.OPEN;
         this.onopen(util.createEvent("open"));
