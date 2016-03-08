@@ -267,7 +267,7 @@ exports.extractParams = function (url) {
   return result;
 };
 
-},{"assert":24}],5:[function(require,module,exports){
+},{"assert":25}],5:[function(require,module,exports){
 /*eslint-disable no-console*/
 "use strict";
 
@@ -355,7 +355,7 @@ function ConnectionContext() {
 }
 inherits(ConnectionContext, EventEmitter);
 
-},{"events":25,"inherits":29}],8:[function(require,module,exports){
+},{"events":26,"inherits":30}],8:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -467,7 +467,7 @@ exports.decorate = function (factory, options) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../../common/path-params":4,"../multiplex-client":16,"../promised-connection":17,"../util":22}],10:[function(require,module,exports){
+},{"../../common/path-params":4,"../multiplex-client":16,"../promised-connection":17,"../util":23}],10:[function(require,module,exports){
 "use strict";
 
 var assert = require("assert");
@@ -973,7 +973,7 @@ BufferedResendConnection.prototype.send = function (data) {
   if (!this._disconnected) this._conn.send(data);
 };
 
-},{"../../common/message-buffer":1,"../../common/message-receiver":2,"../../common/message-utils":3,"../../common/path-params":4,"../debug":5,"../log":14,"../util":22,"../websocket":23,"./base-connection-decorator":6,"assert":24,"events":25,"inherits":29}],11:[function(require,module,exports){
+},{"../../common/message-buffer":1,"../../common/message-receiver":2,"../../common/message-utils":3,"../../common/path-params":4,"../debug":5,"../log":14,"../util":23,"../websocket":24,"./base-connection-decorator":6,"assert":25,"events":26,"inherits":30}],11:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1104,7 +1104,7 @@ function fixupUrl(href, location) {
   return base + search + hash;
 }
 
-},{"assert":24}],14:[function(require,module,exports){
+},{"assert":25}],14:[function(require,module,exports){
 /*eslint-disable no-console*/
 "use strict";
 
@@ -1172,7 +1172,8 @@ var reconnectUI = new ReconnectUI();
  *   workerId: false,
  *
  *   reconnectTimeout: 15000,
- *   connectErrorDelay: 500
+ *   connectErrorDelay: 500,
+ *   disableProtocols: []
  * }
  *
  */
@@ -1305,7 +1306,7 @@ function fixupInternalLinks() {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./decorators/connection-context":7,"./decorators/extend-session":8,"./decorators/multiplex":9,"./decorators/reconnect":10,"./decorators/token":11,"./decorators/worker-id":12,"./fixup-url":13,"./log":14,"./promised-connection":17,"./reconnect-ui":18,"./sockjs":19,"./subapp":20,"./ui":21,"assert":24}],16:[function(require,module,exports){
+},{"./decorators/connection-context":7,"./decorators/extend-session":8,"./decorators/multiplex":9,"./decorators/reconnect":10,"./decorators/token":11,"./decorators/worker-id":12,"./fixup-url":13,"./log":14,"./promised-connection":17,"./reconnect-ui":19,"./sockjs":20,"./subapp":21,"./ui":22,"assert":25}],16:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1636,7 +1637,137 @@ Object.defineProperty(PromisedConnection.prototype, "extensions", {
   }
 });
 
-},{"./util":22,"./websocket":23}],18:[function(require,module,exports){
+},{"./util":23,"./websocket":24}],18:[function(require,module,exports){
+(function (global){
+"use strict";
+
+var $ = global.jQuery;
+var ShinyServer = global.ShinyServer;
+
+var whitelist = [];
+
+Object.defineProperty(exports, "whitelist", {
+  get: function get() {
+    return whitelist;
+  }
+});
+
+function supports_html5_storage() {
+  // window.localStorage is allowed to throw a SecurityError, so we must catch
+  try {
+    return 'localStorage' in window && window['localStorage'] !== null;
+  } catch (e) {
+    return false;
+  }
+}
+
+var availableOptions = ["websocket", "xdr-streaming", "xhr-streaming", "iframe-eventsource", "iframe-htmlfile", "xdr-polling", "xhr-polling", "iframe-xhr-polling", "jsonp-polling"];
+
+var store = null;
+
+if (supports_html5_storage()) {
+  store = window.localStorage;
+  var whitelistStr = store["shiny.whitelist"];
+  if (!whitelistStr || whitelistStr === "") {
+    whitelist = availableOptions;
+  } else {
+    whitelist = JSON.parse(whitelistStr);
+    // Regardless of what the user set, disable any protocols that aren't offered by the server.
+    $.each(whitelist, function (i, p) {
+      if ($.inArray(p, availableOptions) === -1) {
+        // Then it's not a valid option
+        whitelist.splice($.inArray(p, whitelist), 1);
+      }
+    });
+  }
+}
+
+if (!whitelist) {
+  whitelist = availableOptions;
+}
+
+var networkSelectorVisible = false;
+var networkSelector = undefined;
+var networkOptions = undefined;
+
+// Build the SockJS network protocol selector.
+//
+// Has the side-effect of defining values for both "networkSelector"
+// and "networkOptions".
+function buildNetworkSelector() {
+  networkSelector = $('<div style="top: 50%; left: 50%; position: absolute; z-index: 99999;">' + '<div style="position: relative; width: 300px; margin-left: -150px; padding: .5em 1em 0 1em; height: 400px; margin-top: -190px; background-color: #FAFAFA; border: 1px solid #CCC; font.size: 1.2em;">' + '<h3>Select Network Methods</h3>' + '<div id="ss-net-opts"></div>' + '<div id="ss-net-prot-warning" style="color: #44B">' + (supports_html5_storage() ? '' : "These network settings can only be configured in browsers that support HTML5 Storage. Please update your browser or unblock storage for this domain.") + '</div>' + '<div style="float: right;">' + '<input type="button" value="Reset" onclick="ShinyServer.enableAll()"></input>' + '<input type="button" value="OK" onclick="ShinyServer.toggleNetworkSelector();" style="margin-left: 1em;" id="netOptOK"></input>' + '</div>' + '</div></div>');
+
+  networkOptions = $('#ss-net-opts', networkSelector);
+  $.each(availableOptions, function (index, val) {
+    var checked = $.inArray(val, whitelist) >= 0;
+    var opt = $('<label><input type="checkbox" id="ss-net-opt-' + val + '" name="shiny-server-proto-checkbox" value="' + index + '" ' + (supports_html5_storage() ? '' : 'disabled="disabled"') + '> ' + val + '</label>').appendTo(networkOptions);
+    var checkbox = $('input', opt);
+    checkbox.change(function (evt) {
+      ShinyServer.setOption(val, $(evt.target).prop('checked'));
+    });
+    if (checked) {
+      checkbox.prop('checked', true);
+    }
+  });
+}
+
+$(document).keydown(function (event) {
+  if (event.shiftKey && event.ctrlKey && event.altKey && event.keyCode == 65) {
+    toggleNetworkSelector();
+  }
+});
+
+ShinyServer.toggleNetworkSelector = toggleNetworkSelector;
+function toggleNetworkSelector() {
+  if (networkSelectorVisible) {
+    networkSelectorVisible = false;
+    networkSelector.hide();
+  } else {
+    // Lazily build the DOM for the selector the first time it is toggled.
+    if (networkSelector === undefined) {
+      buildNetworkSelector();
+      $('body').append(networkSelector);
+    }
+
+    networkSelectorVisible = true;
+    networkSelector.show();
+  }
+}
+
+ShinyServer.enableAll = enableAll;
+function enableAll() {
+  $('input', networkOptions).each(function (index, val) {
+    $(val).prop('checked', true);
+  });
+  // Enable each protocol internally
+  $.each(availableOptions, function (index, val) {
+    setOption(val, true);
+  });
+}
+
+/**
+ * Doesn't update the DOM, just updates our internal model.
+ */
+ShinyServer.setOption = setOption;
+function setOption(option, enabled) {
+  $("#ss-net-prot-warning").html("Updated settings will be applied when you refresh your browser or load a new Shiny application.");
+  if (enabled && $.inArray(option, whitelist) === -1) {
+    whitelist.push(option);
+  }
+  if (!enabled && $.inArray(option, whitelist >= 0)) {
+    // Don't remove if it's the last one, and recheck
+    if (whitelist.length === 1) {
+      $("#ss-net-prot-warning").html("You must leave at least one method selected.");
+      $("#ss-net-opt-" + option).prop('checked', true);
+    } else {
+      whitelist.splice($.inArray(option, whitelist), 1);
+    }
+  }
+  store["shiny.whitelist"] = JSON.stringify(whitelist);
+}
+
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{}],19:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1723,7 +1854,7 @@ ReconnectUI.prototype.showDisconnected = function () {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"events":25,"inherits":29}],19:[function(require,module,exports){
+},{"events":26,"inherits":30}],20:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1751,13 +1882,24 @@ global.__shinyserverdebug__ = {
   }
 };
 
+// options.disableProtocols can be an array of protocols to remove from the
+// whitelist
 exports.createFactory = function (options) {
   return function (url, context, callback) {
     if (!callback) throw new Error("callback is required");
 
     url = pathParams.reorderPathParams(url, ["n", "o", "t", "w", "s"]);
 
-    var conn = new global.SockJS(url, null, options);
+    var whitelist = [];
+    require("./protocol-chooser").whitelist.forEach(function (prot) {
+      if (!options.disableProtocols || options.disableProtocols.indexOf(prot) < 0) {
+        whitelist.push(prot);
+      }
+    });
+
+    var conn = new global.SockJS(url, null, {
+      protocols_whitelist: whitelist
+    });
     currConn = conn;
 
     callback(null, conn);
@@ -1765,7 +1907,7 @@ exports.createFactory = function (options) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../common/path-params":4,"./log":14}],20:[function(require,module,exports){
+},{"../common/path-params":4,"./log":14,"./protocol-chooser":18}],21:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1788,7 +1930,7 @@ function createSocket() {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],21:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1848,7 +1990,7 @@ function onLicense(Shiny, license) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],22:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -2004,7 +2146,7 @@ Object.defineProperty(PauseConnection.prototype, "extensions", {
 });
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./log":14,"pinkyswear":30}],23:[function(require,module,exports){
+},{"./log":14,"pinkyswear":31}],24:[function(require,module,exports){
 "use strict";
 
 // Constants from WebSocket and SockJS APIs.
@@ -2014,7 +2156,7 @@ exports.OPEN = 1;
 exports.CLOSING = 2;
 exports.CLOSED = 3;
 
-},{}],24:[function(require,module,exports){
+},{}],25:[function(require,module,exports){
 // http://wiki.commonjs.org/wiki/Unit_Testing/1.0
 //
 // THIS IS NOT TESTED NOR LIKELY TO WORK OUTSIDE V8!
@@ -2375,7 +2517,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":28}],25:[function(require,module,exports){
+},{"util/":29}],26:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -2675,7 +2817,7 @@ function isUndefined(arg) {
   return arg === void 0;
 }
 
-},{}],26:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -2768,14 +2910,14 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],27:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],28:[function(require,module,exports){
+},{}],29:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -3365,7 +3507,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":27,"_process":26,"inherits":29}],29:[function(require,module,exports){
+},{"./support/isBuffer":28,"_process":27,"inherits":30}],30:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -3390,7 +3532,7 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],30:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 (function (process){
 /*
  * PinkySwear.js 2.2.2 - Minimalistic implementation of the Promises/A+ spec
@@ -3511,4 +3653,4 @@ if (typeof Object.create === 'function') {
 
 
 }).call(this,require('_process'))
-},{"_process":26}]},{},[15]);
+},{"_process":27}]},{},[15]);
