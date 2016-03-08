@@ -1251,6 +1251,17 @@ function initSession(shiny, options, shinyServer) {
 }
 
 global.preShinyInit = function (options) {
+  if (options.fixupInternalLinks && !subapp.isSubApp()) {
+    global.jQuery(function (_) {
+      fixupInternalLinks();
+    });
+  }
+
+  if (!global.Shiny) {
+    // Don't do anything if this isn't even a Shiny URL
+    return;
+  }
+
   global.ShinyServer = global.ShinyServer || {};
   initSession(global.Shiny, options, global.ShinyServer);
 
@@ -1261,12 +1272,6 @@ global.preShinyInit = function (options) {
     if (message.console && console.log) console.log(message.console);
   };
   /*eslint-enable no-console*/
-
-  if (options.fixupInternalLinks && !subapp.isSubApp()) {
-    global.jQuery(function (_) {
-      fixupInternalLinks();
-    });
-  }
 };
 
 global.fixupInternalLinks = fixupInternalLinks;
