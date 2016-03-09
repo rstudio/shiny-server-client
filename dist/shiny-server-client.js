@@ -377,22 +377,23 @@ function extendSession() {
 // * Reads from ctx: nothing
 exports.decorate = function (factory, options) {
   return function (url, ctx, callback) {
+    var duration = options.extendSessionInterval || 5 * 1000;
 
     // Use this interval-id to shut down the interval when we lose our
     // connection to the server.
-    var extendSessionInterval = null;
+    var handle = null;
 
     factory(url, ctx, function (err, conn) {
       if (!err) {
-        extendSessionInterval = setInterval(extendSession, 5 * 1000);
+        handle = setInterval(extendSession, duration);
       }
 
       // Pass through the connection except clear the extendSessionInterval on
       // close.
       var wrapper = new BaseConnectionDecorator(conn);
       conn.onclose = function () {
-        clearInterval(extendSessionInterval);
-        extendSessionInterval = null;
+        clearInterval(handle);
+        handle = null;
         if (wrapper.onclose) wrapper.onclose.apply(wrapper, arguments);
       };
 
@@ -2861,7 +2862,6 @@ if (typeof Object.create === 'function') {
 }
 
 },{}],28:[function(require,module,exports){
-(function (process){
 /*
  * PinkySwear.js 2.2.2 - Minimalistic implementation of the Promises/A+ spec
  * 
@@ -2909,8 +2909,6 @@ if (typeof Object.create === 'function') {
 	function defer(callback) {
 		if (typeof setImmediate != 'undefined')
 			setImmediate(callback);
-		else if (typeof process != 'undefined' && process['nextTick'])
-			process['nextTick'](callback);
 		else
 			setTimeout(callback, 0);
 	}
@@ -2980,8 +2978,7 @@ if (typeof Object.create === 'function') {
 })(typeof module == 'undefined' ? [window, 'pinkySwear'] : [module, 'exports']);
 
 
-}).call(this,require('_process'))
-},{"_process":29}],29:[function(require,module,exports){
+},{}],29:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};

@@ -1,20 +1,20 @@
 # Shiny Server unified client
 
-[![Build Status](https://travis-ci.org/rstudio/shiny-server-js.svg?branch=master)](https://travis-ci.org/rstudio/shiny-server-js)
+[![Build Status](https://travis-ci.org/rstudio/shiny-server-client.svg?branch=master)](https://travis-ci.org/rstudio/shiny-server-client)
 
 This npm library provides unified client code for Shiny Server, Shiny Server Pro, and RStudio Connect. Previously, each server product had its own version of this code with slight differences. This repo provides the superset of functionality needed by the different products, and runtime options determine what features to enable.
 
 ### How to use
 
-In the server directory, install the module using `npm`. If the server already uses node modules, you can easily install `shiny-server-js` to your existing package.json like this:
+In the server directory, install the module using `npm`. If the server already uses node modules, you can easily install `shiny-server-client` to your existing package.json like this:
 
 ```
-npm install --save shiny-server-js
+npm install --save https://github.com/rstudio/shiny-server-client/archive/master.tar.gz
 ```
 
 Otherwise, you'll need to create a package.json file first, using the `npm init` command, then run the above command.
 
-In your server code, use `node_modules/shiny-server-js/dist/shiny-server.js` and `shiny-server.min.js` to get to the client JS.
+In your server code, use `node_modules/shiny-server-client/dist/shiny-server-client.js` and `shiny-server-client.min.js` to get to the client JS.
 
 ### How to build
 

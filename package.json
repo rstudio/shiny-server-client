@@ -1,5 +1,5 @@
 {
-  "name": "shiny-server-js",
+  "name": "shiny-server-client",
   "version": "1.0.0",
   "description": "Browser library for connecting to Shiny Server and Shiny Server Pro",
   "main": "dist/shiny-server.min.js",
@@ -11,7 +11,7 @@
   "license": "AGPL-3.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/rstudio/shiny-server-js"
+    "url": "https://github.com/rstudio/shiny-server-client"
   },
   "dependencies": {
     "pinkyswear": "~2.2",
