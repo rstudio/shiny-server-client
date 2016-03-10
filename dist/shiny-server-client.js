@@ -724,7 +724,13 @@ RobustConnection.prototype._connect = function (timeoutMillis) {
     });
   }
 
+  function doReconnect() {
+    progressCallbacks.emit("retry-now");
+  }
+  this._ctx.on("do-reconnect", doReconnect);
+
   util.retryPromise_p(open_p, util.createNiceBackoffDelayFunc(), expires, progressCallbacks).then(function (conn) {
+    _this._ctx.removeListener("do-reconnect", doReconnect);
 
     assert(!_this._conn, "Connection promise fulfilled, but _conn was not null!");
 
@@ -739,6 +745,7 @@ RobustConnection.prototype._connect = function (timeoutMillis) {
     conn.resume();
   }, function (err) {
     log(err);
+    _this._ctx.off("do-reconnect", doReconnect);
 
     assert(!_this._conn, "Connection promise rejected, but _conn was not null!");
 
@@ -1798,7 +1805,7 @@ function ReconnectUI() {
     var dialog = $('<div id="ss-connect-dialog" style="display: none;"></div><div id="ss-overlay" class="ss-gray-out" style="display: none;"></div>');
     dialog.appendTo('body');
 
-    $('#ss-reconnect-link').click(function (e) {
+    $(document).on("click", '#ss-reconnect-link', function (e) {
       e.preventDefault();
       _this.emit("do-reconnect");
     });
@@ -2032,13 +2039,20 @@ exports.createNiceBackoffDelayFunc = function () {
 // it either returns successfully, or time expires. Use a configurable
 // delay in between attempts.
 //
-// progressCallbacks should be an EventEmitter or similar; it will be called
-// with the following event names (and arguments):
+// progressCallbacks should be an EventEmitter or similar; this function will
+// emit the following events (and arguments):
 //
 // "schedule", delayMillis  // Called each time the next attempt is scheduled
 // "attempt"                // Called each time an attempt begins
 // "success"                // Called if retryPromise_p ends in success
 // "failure"                // Called if retryPromise_p ends in failure
+//
+// On the same progressCallbacks object, this function will LISTEN FOR the
+// following event (note that it can be invoked repeatedly):
+//
+// "retry-now"              // Stop waiting for next attempt; do it immediately.
+//                          // If emitted during an attempt, event will be
+//                          // ignored.
 exports.retryPromise_p = function (create_p, delayFunc, expiration, progressCallbacks) {
 
   if (!progressCallbacks) progressCallbacks = { emit: function emit() {} };
@@ -2051,7 +2065,8 @@ exports.retryPromise_p = function (create_p, delayFunc, expiration, progressCall
   // But in no case should the delay be less than zero, either.
   delay = Math.max(0, delay);
 
-  setTimeout(function () {
+  function attempt() {
+    progressCallbacks.removeListener("retry-now", retryNow);
     progressCallbacks.emit("attempt");
 
     create_p().then(function (value) {
@@ -2072,7 +2087,15 @@ exports.retryPromise_p = function (create_p, delayFunc, expiration, progressCall
         }).done();
       }
     }).done();
-  }, delay);
+  }
+
+  var timeoutHandle = setTimeout(attempt, delay);
+
+  function retryNow() {
+    clearTimeout(timeoutHandle);
+    attempt();
+  }
+  progressCallbacks.on("retry-now", retryNow);
 
   progressCallbacks.emit("schedule", delay);
 
