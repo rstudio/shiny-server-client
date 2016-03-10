@@ -1794,6 +1794,11 @@ var inherits = require("inherits");
 
 var $ = global.jQuery;
 
+var dialogHtml = '<div id="ss-connect-dialog" style="display: none;"></div><div id="ss-overlay" class="ss-gray-out" style="display: none;"></div>';
+var countdownContentsHtml = '<label>Reconnect failed. Retrying in <span id="ss-dialog-countdown"></span> seconds...</label> <a id="ss-reconnect-link" href="#" class="ss-dialog-link">Try now</a>';
+var reconnectContentsHtml = '<label>Attempting to reconnect...</label><label>&nbsp;</label>';
+var disconnectContentsHtml = '<label>Disconnected from the server.</label> <a id="ss-reload-link" href="#" class="ss-dialog-link">Reload</a>';
+
 module.exports = ReconnectUI;
 
 function ReconnectUI() {
@@ -1802,7 +1807,7 @@ function ReconnectUI() {
   EventEmitter.call(this);
 
   $(function () {
-    var dialog = $('<div id="ss-connect-dialog" style="display: none;"></div><div id="ss-overlay" class="ss-gray-out" style="display: none;"></div>');
+    var dialog = $(dialogHtml);
     dialog.appendTo('body');
 
     $(document).on("click", '#ss-reconnect-link', function (e) {
@@ -1835,7 +1840,7 @@ inherits(ReconnectUI, EventEmitter);
 ReconnectUI.prototype.showCountdown = function (delay) {
   if (delay < 200) return;
   var attemptTime = Date.now() + delay;
-  $('#ss-connect-dialog').html('<a id="ss-reconnect-link" href="#" class="ss-dialog-link">Reconnect Now</a> Reconnect failed. Retrying in <span id="ss-dialog-countdown"></span>s...');
+  $('#ss-connect-dialog').html(countdownContentsHtml);
   $('#ss-connect-dialog').show();
   // $('#ss-overlay').show();
 
@@ -1861,7 +1866,7 @@ ReconnectUI.prototype.showCountdown = function (delay) {
 
 ReconnectUI.prototype.showAttempting = function () {
   $('body').addClass('ss-reconnecting');
-  $("#ss-connect-dialog").html("Attempting to reconnect...");
+  $("#ss-connect-dialog").html(reconnectContentsHtml);
   $('#ss-connect-dialog').show();
   // $('#ss-overlay').show();
 };
@@ -1873,9 +1878,7 @@ ReconnectUI.prototype.hide = function () {
 };
 
 ReconnectUI.prototype.showDisconnected = function () {
-  var html = '<a id="ss-reload-link" href="#" class="ss-dialog-link">Reload</a> Disconnected from the server.';
-
-  $('#ss-connect-dialog').html(html).show();
+  $('#ss-connect-dialog').html(disconnectContentsHtml).show();
   $('#ss-overlay').show();
   $('body').removeClass('ss-reconnecting');
   $('#ss-overlay').addClass('ss-gray-out');
