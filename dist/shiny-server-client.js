@@ -745,7 +745,7 @@ RobustConnection.prototype._connect = function (timeoutMillis) {
     conn.resume();
   }, function (err) {
     log(err);
-    _this._ctx.off("do-reconnect", doReconnect);
+    _this._ctx.removeListener("do-reconnect", doReconnect);
 
     assert(!_this._conn, "Connection promise rejected, but _conn was not null!");
 
