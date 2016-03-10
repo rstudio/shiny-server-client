@@ -775,7 +775,6 @@ RobustConnection.prototype._handleClose = function (e) {
     this._setReadyState(WebSocket.CLOSED);
     this.onclose(e);
     this._ctx.emit("disconnect");
-    this._ctx.emit("clean-disconnect");
   } else {
     log("Disconnect detected; attempting reconnect");
     this.ondisconnect(util.createEvent("disconnect"));
@@ -1251,7 +1250,7 @@ function initSession(shiny, options, shinyServer) {
         // Signal to Shiny 0.14 and above that a Shiny-level reconnection (i.e.
         // automatically starting a new session) is permitted.
         pc.allowReconnect = true;
-        ctx.on("clean-disconnect", function () {
+        ctx.on("disconnect", function () {
           // Don't allow a Shiny-level reconnection (new session) if we close
           // cleanly; this is an indication that the server wanted us to close
           // and stay closed (e.g. session idle timeout).
