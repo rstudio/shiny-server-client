@@ -360,7 +360,7 @@ function ConnectionContext() {
 }
 inherits(ConnectionContext, EventEmitter);
 
-},{"events":26,"inherits":27}],8:[function(require,module,exports){
+},{"events":26,"inherits":30}],8:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -994,7 +994,7 @@ BufferedResendConnection.prototype.send = function (data) {
   if (!this._disconnected) this._conn.send(data);
 };
 
-},{"../../common/message-buffer":1,"../../common/message-receiver":2,"../../common/message-utils":3,"../../common/path-params":4,"../debug":5,"../log":14,"../util":23,"../websocket":24,"./base-connection-decorator":6,"assert":25,"events":26,"inherits":27}],11:[function(require,module,exports){
+},{"../../common/message-buffer":1,"../../common/message-receiver":2,"../../common/message-utils":3,"../../common/path-params":4,"../debug":5,"../log":14,"../util":23,"../websocket":24,"./base-connection-decorator":6,"assert":25,"events":26,"inherits":30}],11:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1153,7 +1153,7 @@ var workerId = require("./decorators/worker-id");
 var sockjs = require("./sockjs");
 var PromisedConnection = require("./promised-connection");
 var ConnectionContext = require("./decorators/connection-context");
-var ReconnectUI = require("./reconnect-ui");
+var reconnect_ui = require("./reconnect-ui");
 var ui = require("./ui");
 
 /*
@@ -1180,7 +1180,7 @@ SSP/RSC config:
     Subapp
 */
 
-var reconnectUI = new ReconnectUI();
+var reconnectUI = reconnect_ui.createReconnectUI();
 
 /**
  * options = {
@@ -1383,7 +1383,7 @@ function MultiplexClient(conn) {
 
   this._conn.onopen = function () {
     log("Connection opened. " + global.location.href);
-    var channel = undefined;
+    var channel = void 0;
     while (channel = _this._pendingChannels.shift()) {
       // Be sure to check readyState so we don't open connections for
       // channels that were closed before they finished opening
@@ -1824,8 +1824,6 @@ var countdownContentsHtml = '<label>Reconnect failed. Retrying in <span id="ss-d
 var reconnectContentsHtml = '<label>Attempting to reconnect...</label><label>&nbsp;</label>';
 var disconnectContentsHtml = '<label>Disconnected from the server.</label> <a id="ss-reload-link" href="#" class="ss-dialog-link">Reload</a>';
 
-module.exports = ReconnectUI;
-
 function ReconnectUI() {
   var _this = this;
 
@@ -1844,6 +1842,8 @@ function ReconnectUI() {
       window.location.reload();
     });
   });
+
+  this.updateInterval = null;
 }
 
 inherits(ReconnectUI, EventEmitter);
@@ -1863,6 +1863,9 @@ inherits(ReconnectUI, EventEmitter);
 // On stop: "Connection lost [Reload]"
 
 ReconnectUI.prototype.showCountdown = function (delay) {
+  var _this2 = this;
+
+  clearInterval(this.updateInterval);
   if (delay < 200) return;
   var attemptTime = Date.now() + delay;
   $('#ss-connect-dialog').html(countdownContentsHtml);
@@ -1877,19 +1880,18 @@ ReconnectUI.prototype.showCountdown = function (delay) {
   }
   updateCountdown(Math.round(delay / 1000));
   if (delay > 15000) {
-    (function () {
-      var updateInterval = setInterval(function () {
-        if (Date.now() > attemptTime) {
-          clearInterval(updateInterval);
-        } else {
-          updateCountdown();
-        }
-      }, 15000);
-    })();
+    this.updateInterval = setInterval(function () {
+      if (Date.now() > attemptTime) {
+        clearInterval(_this2.updateInterval);
+      } else {
+        updateCountdown();
+      }
+    }, 15000);
   }
 };
 
 ReconnectUI.prototype.showAttempting = function () {
+  clearInterval(this.updateInterval);
   $('body').addClass('ss-reconnecting');
   $("#ss-connect-dialog").html(reconnectContentsHtml);
   $('#ss-connect-dialog').show();
@@ -1897,20 +1899,104 @@ ReconnectUI.prototype.showAttempting = function () {
 };
 
 ReconnectUI.prototype.hide = function () {
+  clearInterval(this.updateInterval);
   $('body').removeClass('ss-reconnecting');
   $('#ss-connect-dialog').hide();
   $('#ss-overlay').hide();
 };
 
 ReconnectUI.prototype.showDisconnected = function () {
+  clearInterval(this.updateInterval);
   $('#ss-connect-dialog').html(disconnectContentsHtml).show();
   $('#ss-overlay').show();
   $('body').removeClass('ss-reconnecting');
   $('#ss-overlay').addClass('ss-gray-out');
 };
 
+function DelegatedUI() {
+  var _this3 = this;
+
+  EventEmitter.call(this);
+
+  $(document).on("click", '#ss-reconnect-link', function (e) {
+    e.preventDefault();
+    _this3.emit("do-reconnect");
+  });
+  $(document).on("click", "#ss-reload-link", function (e) {
+    e.preventDefault();
+    window.location.reload();
+  });
+
+  this.updateInterval = null;
+}
+
+inherits(DelegatedUI, EventEmitter);
+
+DelegatedUI.prototype.showCountdown = function (delay) {
+  var _this4 = this;
+
+  clearInterval(this.updateInterval);
+  if (delay < 200) return;
+  var attemptTime = Date.now() + delay;
+  global.Shiny.notifications.show({
+    id: "reconnect",
+    html: 'Reconnect failed. Retrying in <span id="ss-dialog-countdown"></span> seconds...',
+    action: '<a id="ss-reconnect-link" href="#" class="ss-dialog-link">Try now</a>',
+    closeButton: false,
+    type: "warning"
+  });
+  // $('#ss-overlay').show();
+
+  function updateCountdown(seconds /* optional */) {
+    if (typeof seconds === "undefined") {
+      seconds = Math.max(0, Math.floor((attemptTime - Date.now()) / 1000)) + "";
+    }
+    $("#ss-dialog-countdown").html(seconds);
+  }
+  updateCountdown(Math.round(delay / 1000));
+  if (delay > 15000) {
+    this.updateInterval = setInterval(function () {
+      if (Date.now() > attemptTime) {
+        clearInterval(_this4.updateInterval);
+      } else {
+        updateCountdown();
+      }
+    }, 15000);
+  }
+};
+
+DelegatedUI.prototype.showAttempting = function () {
+  clearInterval(this.updateInterval);
+  global.Shiny.notifications.show({
+    id: "reconnect",
+    html: "Attempting to reconnect...",
+    closeButton: false,
+    type: "warning"
+  });
+};
+
+DelegatedUI.prototype.hide = function () {
+  clearInterval(this.updateInterval);
+  global.Shiny.notifications.remove("reconnect");
+};
+
+DelegatedUI.prototype.showDisconnected = function () {
+  clearInterval(this.updateInterval);
+  global.Shiny.notifications.show({
+    id: "reconnect",
+    html: "Disconnected from the server.",
+    action: '<a id="ss-reload-link" href="#" class="ss-dialog-link">Reload</a>',
+    closeButton: false,
+    type: "warning"
+  });
+};
+
+exports.createReconnectUI = function () {
+  if (global.Shiny.notifications) return new DelegatedUI();else return new ReconnectUI();
+};
+
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"events":26,"inherits":27}],20:[function(require,module,exports){
+},{"events":26,"inherits":30}],20:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -2236,7 +2322,7 @@ Object.defineProperty(PauseConnection.prototype, "extensions", {
 });
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./log":14,"pinkyswear":28}],24:[function(require,module,exports){
+},{"./log":14,"pinkyswear":31}],24:[function(require,module,exports){
 "use strict";
 
 // Constants from WebSocket and SockJS APIs.
@@ -2607,7 +2693,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":31}],26:[function(require,module,exports){
+},{"util/":29}],26:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -2908,148 +2994,6 @@ function isUndefined(arg) {
 }
 
 },{}],27:[function(require,module,exports){
-if (typeof Object.create === 'function') {
-  // implementation from standard node.js 'util' module
-  module.exports = function inherits(ctor, superCtor) {
-    ctor.super_ = superCtor
-    ctor.prototype = Object.create(superCtor.prototype, {
-      constructor: {
-        value: ctor,
-        enumerable: false,
-        writable: true,
-        configurable: true
-      }
-    });
-  };
-} else {
-  // old school shim for old browsers
-  module.exports = function inherits(ctor, superCtor) {
-    ctor.super_ = superCtor
-    var TempCtor = function () {}
-    TempCtor.prototype = superCtor.prototype
-    ctor.prototype = new TempCtor()
-    ctor.prototype.constructor = ctor
-  }
-}
-
-},{}],28:[function(require,module,exports){
-/*
- * PinkySwear.js 2.2.2 - Minimalistic implementation of the Promises/A+ spec
- * 
- * Public Domain. Use, modify and distribute it any way you like. No attribution required.
- *
- * NO WARRANTY EXPRESSED OR IMPLIED. USE AT YOUR OWN RISK.
- *
- * PinkySwear is a very small implementation of the Promises/A+ specification. After compilation with the
- * Google Closure Compiler and gzipping it weighs less than 500 bytes. It is based on the implementation for 
- * Minified.js and should be perfect for embedding. 
- *
- *
- * PinkySwear has just three functions.
- *
- * To create a new promise in pending state, call pinkySwear():
- *         var promise = pinkySwear();
- *
- * The returned object has a Promises/A+ compatible then() implementation:
- *          promise.then(function(value) { alert("Success!"); }, function(value) { alert("Failure!"); });
- *
- *
- * The promise returned by pinkySwear() is a function. To fulfill the promise, call the function with true as first argument and
- * an optional array of values to pass to the then() handler. By putting more than one value in the array, you can pass more than one
- * value to the then() handlers. Here an example to fulfill a promsise, this time with only one argument: 
- *         promise(true, [42]);
- *
- * When the promise has been rejected, call it with false. Again, there may be more than one argument for the then() handler:
- *         promise(true, [6, 6, 6]);
- *         
- * You can obtain the promise's current state by calling the function without arguments. It will be true if fulfilled,
- * false if rejected, and otherwise undefined.
- * 		   var state = promise(); 
- * 
- * https://github.com/timjansen/PinkySwear.js
- */
-(function(target) {
-	var undef;
-
-	function isFunction(f) {
-		return typeof f == 'function';
-	}
-	function isObject(f) {
-		return typeof f == 'object';
-	}
-	function defer(callback) {
-		if (typeof setImmediate != 'undefined')
-			setImmediate(callback);
-		else
-			setTimeout(callback, 0);
-	}
-
-	target[0][target[1]] = function pinkySwear(extend) {
-		var state;           // undefined/null = pending, true = fulfilled, false = rejected
-		var values = [];     // an array of values as arguments for the then() handlers
-		var deferred = [];   // functions to call when set() is invoked
-
-		var set = function(newState, newValues) {
-			if (state == null && newState != null) {
-				state = newState;
-				values = newValues;
-				if (deferred.length)
-					defer(function() {
-						for (var i = 0; i < deferred.length; i++)
-							deferred[i]();
-					});
-			}
-			return state;
-		};
-
-		set['then'] = function (onFulfilled, onRejected) {
-			var promise2 = pinkySwear(extend);
-			var callCallbacks = function() {
-	    		try {
-	    			var f = (state ? onFulfilled : onRejected);
-	    			if (isFunction(f)) {
-		   				function resolve(x) {
-						    var then, cbCalled = 0;
-		   					try {
-				   				if (x && (isObject(x) || isFunction(x)) && isFunction(then = x['then'])) {
-										if (x === promise2)
-											throw new TypeError();
-										then['call'](x,
-											function() { if (!cbCalled++) resolve.apply(undef,arguments); } ,
-											function(value){ if (!cbCalled++) promise2(false,[value]);});
-				   				}
-				   				else
-				   					promise2(true, arguments);
-		   					}
-		   					catch(e) {
-		   						if (!cbCalled++)
-		   							promise2(false, [e]);
-		   					}
-		   				}
-		   				resolve(f.apply(undef, values || []));
-		   			}
-		   			else
-		   				promise2(state, values);
-				}
-				catch (e) {
-					promise2(false, [e]);
-				}
-			};
-			if (state != null)
-				defer(callCallbacks);
-			else
-				deferred.push(callCallbacks);
-			return promise2;
-		};
-        if(extend){
-            set = extend(set);
-        }
-		return set;
-	};
-})(typeof module == 'undefined' ? [window, 'pinkySwear'] : [module, 'exports']);
-
-
-},{}],29:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -3142,14 +3086,14 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],30:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],31:[function(require,module,exports){
+},{}],29:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -3739,4 +3683,150 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":30,"_process":29,"inherits":27}]},{},[15]);
+},{"./support/isBuffer":28,"_process":27,"inherits":30}],30:[function(require,module,exports){
+if (typeof Object.create === 'function') {
+  // implementation from standard node.js 'util' module
+  module.exports = function inherits(ctor, superCtor) {
+    ctor.super_ = superCtor
+    ctor.prototype = Object.create(superCtor.prototype, {
+      constructor: {
+        value: ctor,
+        enumerable: false,
+        writable: true,
+        configurable: true
+      }
+    });
+  };
+} else {
+  // old school shim for old browsers
+  module.exports = function inherits(ctor, superCtor) {
+    ctor.super_ = superCtor
+    var TempCtor = function () {}
+    TempCtor.prototype = superCtor.prototype
+    ctor.prototype = new TempCtor()
+    ctor.prototype.constructor = ctor
+  }
+}
+
+},{}],31:[function(require,module,exports){
+(function (process){
+/*
+ * PinkySwear.js 2.2.2 - Minimalistic implementation of the Promises/A+ spec
+ * 
+ * Public Domain. Use, modify and distribute it any way you like. No attribution required.
+ *
+ * NO WARRANTY EXPRESSED OR IMPLIED. USE AT YOUR OWN RISK.
+ *
+ * PinkySwear is a very small implementation of the Promises/A+ specification. After compilation with the
+ * Google Closure Compiler and gzipping it weighs less than 500 bytes. It is based on the implementation for 
+ * Minified.js and should be perfect for embedding. 
+ *
+ *
+ * PinkySwear has just three functions.
+ *
+ * To create a new promise in pending state, call pinkySwear():
+ *         var promise = pinkySwear();
+ *
+ * The returned object has a Promises/A+ compatible then() implementation:
+ *          promise.then(function(value) { alert("Success!"); }, function(value) { alert("Failure!"); });
+ *
+ *
+ * The promise returned by pinkySwear() is a function. To fulfill the promise, call the function with true as first argument and
+ * an optional array of values to pass to the then() handler. By putting more than one value in the array, you can pass more than one
+ * value to the then() handlers. Here an example to fulfill a promsise, this time with only one argument: 
+ *         promise(true, [42]);
+ *
+ * When the promise has been rejected, call it with false. Again, there may be more than one argument for the then() handler:
+ *         promise(true, [6, 6, 6]);
+ *         
+ * You can obtain the promise's current state by calling the function without arguments. It will be true if fulfilled,
+ * false if rejected, and otherwise undefined.
+ * 		   var state = promise(); 
+ * 
+ * https://github.com/timjansen/PinkySwear.js
+ */
+(function(target) {
+	var undef;
+
+	function isFunction(f) {
+		return typeof f == 'function';
+	}
+	function isObject(f) {
+		return typeof f == 'object';
+	}
+	function defer(callback) {
+		if (typeof setImmediate != 'undefined')
+			setImmediate(callback);
+		else if (typeof process != 'undefined' && process['nextTick'])
+			process['nextTick'](callback);
+		else
+			setTimeout(callback, 0);
+	}
+
+	target[0][target[1]] = function pinkySwear(extend) {
+		var state;           // undefined/null = pending, true = fulfilled, false = rejected
+		var values = [];     // an array of values as arguments for the then() handlers
+		var deferred = [];   // functions to call when set() is invoked
+
+		var set = function(newState, newValues) {
+			if (state == null && newState != null) {
+				state = newState;
+				values = newValues;
+				if (deferred.length)
+					defer(function() {
+						for (var i = 0; i < deferred.length; i++)
+							deferred[i]();
+					});
+			}
+			return state;
+		};
+
+		set['then'] = function (onFulfilled, onRejected) {
+			var promise2 = pinkySwear(extend);
+			var callCallbacks = function() {
+	    		try {
+	    			var f = (state ? onFulfilled : onRejected);
+	    			if (isFunction(f)) {
+		   				function resolve(x) {
+						    var then, cbCalled = 0;
+		   					try {
+				   				if (x && (isObject(x) || isFunction(x)) && isFunction(then = x['then'])) {
+										if (x === promise2)
+											throw new TypeError();
+										then['call'](x,
+											function() { if (!cbCalled++) resolve.apply(undef,arguments); } ,
+											function(value){ if (!cbCalled++) promise2(false,[value]);});
+				   				}
+				   				else
+				   					promise2(true, arguments);
+		   					}
+		   					catch(e) {
+		   						if (!cbCalled++)
+		   							promise2(false, [e]);
+		   					}
+		   				}
+		   				resolve(f.apply(undef, values || []));
+		   			}
+		   			else
+		   				promise2(state, values);
+				}
+				catch (e) {
+					promise2(false, [e]);
+				}
+			};
+			if (state != null)
+				defer(callCallbacks);
+			else
+				deferred.push(callCallbacks);
+			return promise2;
+		};
+        if(extend){
+            set = extend(set);
+        }
+		return set;
+	};
+})(typeof module == 'undefined' ? [window, 'pinkySwear'] : [module, 'exports']);
+
+
+}).call(this,require('_process'))
+},{"_process":27}]},{},[15]);
