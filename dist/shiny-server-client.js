@@ -272,7 +272,7 @@ exports.extractParams = function (url) {
   return result;
 };
 
-},{"assert":25}],5:[function(require,module,exports){
+},{"assert":26}],5:[function(require,module,exports){
 /*eslint-disable no-console*/
 "use strict";
 
@@ -360,7 +360,7 @@ function ConnectionContext() {
 }
 inherits(ConnectionContext, EventEmitter);
 
-},{"events":26,"inherits":30}],8:[function(require,module,exports){
+},{"events":27,"inherits":31}],8:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -473,7 +473,7 @@ exports.decorate = function (factory, options) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../../common/path-params":4,"../multiplex-client":16,"../promised-connection":17,"../util":23}],10:[function(require,module,exports){
+},{"../../common/path-params":4,"../multiplex-client":16,"../promised-connection":18,"../util":24}],10:[function(require,module,exports){
 "use strict";
 
 var assert = require("assert");
@@ -994,7 +994,7 @@ BufferedResendConnection.prototype.send = function (data) {
   if (!this._disconnected) this._conn.send(data);
 };
 
-},{"../../common/message-buffer":1,"../../common/message-receiver":2,"../../common/message-utils":3,"../../common/path-params":4,"../debug":5,"../log":14,"../util":23,"../websocket":24,"./base-connection-decorator":6,"assert":25,"events":26,"inherits":30}],11:[function(require,module,exports){
+},{"../../common/message-buffer":1,"../../common/message-receiver":2,"../../common/message-utils":3,"../../common/path-params":4,"../debug":5,"../log":14,"../util":24,"../websocket":25,"./base-connection-decorator":6,"assert":26,"events":27,"inherits":31}],11:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1125,7 +1125,7 @@ function fixupUrl(href, location) {
   return base + search + hash;
 }
 
-},{"assert":25}],14:[function(require,module,exports){
+},{"assert":26}],14:[function(require,module,exports){
 /*eslint-disable no-console*/
 "use strict";
 
@@ -1155,6 +1155,8 @@ var PromisedConnection = require("./promised-connection");
 var ConnectionContext = require("./decorators/connection-context");
 var reconnect_ui = require("./reconnect-ui");
 var ui = require("./ui");
+
+require("./notifications");
 
 /*
 Connection factories:
@@ -1349,7 +1351,7 @@ function fixupInternalLinks() {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./decorators/connection-context":7,"./decorators/extend-session":8,"./decorators/multiplex":9,"./decorators/reconnect":10,"./decorators/token":11,"./decorators/worker-id":12,"./fixup-url":13,"./log":14,"./promised-connection":17,"./reconnect-ui":19,"./sockjs":20,"./subapp":21,"./ui":22,"assert":25}],16:[function(require,module,exports){
+},{"./decorators/connection-context":7,"./decorators/extend-session":8,"./decorators/multiplex":9,"./decorators/reconnect":10,"./decorators/token":11,"./decorators/worker-id":12,"./fixup-url":13,"./log":14,"./notifications":17,"./promised-connection":18,"./reconnect-ui":20,"./sockjs":21,"./subapp":22,"./ui":23,"assert":26}],16:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1557,6 +1559,183 @@ function parseMultiplexData(msg) {
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"./debug":5,"./log":14}],17:[function(require,module,exports){
+(function (global){
+"use strict";
+
+var debug = require("./debug");
+
+var $ = global.jQuery;
+
+exports = global.Shiny;
+
+// Forked from Shiny utils.js
+function randomId() {
+  return Math.floor(0x100000000 + Math.random() * 0xF00000000).toString(16);
+}
+
+// Forked from Shiny utils.js
+// Escape jQuery selector metacharacters: !"#$%&'()*+,./:;<=>?@[\]^`{|}~
+function $escape(val) {
+  return val.replace(/([!"#$%&'()*+,.\/:;<=>?@\[\\\]^`{|}~])/g, '\\$1');
+}
+
+// Forked from Shiny notifications.js
+exports.notifications = exports.notifications || function () {
+
+  debug("Using notification shim");
+
+  // Milliseconds to fade in or out
+  var fadeDuration = 250;
+
+  function show() {
+    var _ref = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+
+    var _ref$html = _ref.html;
+    var html = _ref$html === undefined ? '' : _ref$html;
+    var _ref$action = _ref.action;
+    var action = _ref$action === undefined ? '' : _ref$action;
+    var _ref$duration = _ref.duration;
+    var duration = _ref$duration === undefined ? 5000 : _ref$duration;
+    var _ref$id = _ref.id;
+    var id = _ref$id === undefined ? null : _ref$id;
+    var _ref$closeButton = _ref.closeButton;
+    var closeButton = _ref$closeButton === undefined ? true : _ref$closeButton;
+    var _ref$type = _ref.type;
+    var type = _ref$type === undefined ? null : _ref$type;
+
+    if (!id) id = randomId();
+
+    // Create panel if necessary
+    _createPanel();
+
+    // Get existing DOM element for this ID, or create if needed.
+    var $notification = _get(id);
+    if ($notification.length === 0) $notification = _create(id);
+
+    // Render html and dependencies
+    var newHtml = "<div class=\"shiny-notification-content-text\">" + html + "</div>" + ("<div class=\"shiny-notification-content-action\">" + action + "</div>");
+    var $content = $notification.find('.shiny-notification-content');
+    $content.html(newHtml);
+
+    // Remove any existing classes of the form 'shiny-notification-xxxx'.
+    // The xxxx would be strings like 'warning'.
+    var classes = $notification.attr('class').split(/\s+/).filter(function (cls) {
+      return cls.match(/^shiny-notification-/);
+    }).join(' ');
+    $notification.removeClass(classes);
+
+    // Add class. 'default' means no additional CSS class.
+    if (type && type !== 'default') $notification.addClass('shiny-notification-' + type);
+
+    // Make sure that the presence/absence of close button matches with value
+    // of `closeButton`.
+    var $close = $notification.find('.shiny-notification-close');
+    if (closeButton && $close.length === 0) {
+      $notification.append('<div class="shiny-notification-close">&times;</div>');
+    } else if (!closeButton && $close.length !== 0) {
+      $close.remove();
+    }
+
+    // If duration was provided, schedule removal. If not, clear existing
+    // removal callback (this happens if a message was first added with
+    // a duration, and then updated with no duration).
+    if (duration) _addRemovalCallback(id, duration);else _clearRemovalCallback(id);
+
+    return id;
+  }
+
+  function remove(id) {
+    _get(id).fadeOut(fadeDuration, function () {
+
+      this.remove();
+
+      // If no more notifications, remove the panel from the DOM.
+      if (_ids().length === 0) {
+        _getPanel().remove();
+      }
+    });
+  }
+
+  // Returns an individual notification DOM object (wrapped in jQuery).
+  function _get(id) {
+    if (!id) return null;
+    return _getPanel().find('#shiny-notification-' + $escape(id));
+  }
+
+  // Return array of all notification IDs
+  function _ids() {
+    return _getPanel().find('.shiny-notification').map(function () {
+      return this.id.replace(/shiny-notification-/, '');
+    }).get();
+  }
+
+  // Returns the notification panel DOM object (wrapped in jQuery).
+  function _getPanel() {
+    return $('#shiny-notification-panel');
+  }
+
+  // Create notifications panel and return the jQuery object. If the DOM
+  // element already exists, just return it.
+  function _createPanel() {
+    var $panel = _getPanel();
+
+    if ($panel.length > 0) return $panel;
+
+    $('body').append('<div id="shiny-notification-panel" class="shiny-server-shim">');
+
+    return $panel;
+  }
+
+  // Create a notification DOM element and return the jQuery object. If the
+  // DOM element already exists for the ID, just return it without creating.
+  function _create(id) {
+    var $notification = _get(id);
+
+    if ($notification.length === 0) {
+      $notification = $("<div id=\"shiny-notification-" + id + "\" class=\"shiny-notification\">" + '<div class="shiny-notification-close">&times;</div>' + '<div class="shiny-notification-content"></div>' + '</div>');
+
+      $notification.find('.shiny-notification-close').on('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        remove(id);
+      });
+
+      _getPanel().append($notification);
+    }
+
+    return $notification;
+  }
+
+  // Add a callback to remove a notification after a delay in ms.
+  function _addRemovalCallback(id, delay) {
+    // If there's an existing removalCallback, clear it before adding the new
+    // one.
+    _clearRemovalCallback(id);
+
+    // Attach new removal callback
+    var removalCallback = setTimeout(function () {
+      remove(id);
+    }, delay);
+    _get(id).data('removalCallback', removalCallback);
+  }
+
+  // Clear a removal callback from a notification, if present.
+  function _clearRemovalCallback(id) {
+    var $notification = _get(id);
+    var oldRemovalCallback = $notification.data('removalCallback');
+    if (oldRemovalCallback) {
+      clearTimeout(oldRemovalCallback);
+    }
+  }
+
+  return {
+    show: show,
+    remove: remove
+  };
+}();
+
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"./debug":5}],18:[function(require,module,exports){
 "use strict";
 
 var util = require("./util");
@@ -1680,7 +1859,7 @@ Object.defineProperty(PromisedConnection.prototype, "extensions", {
   }
 });
 
-},{"./util":23,"./websocket":24}],18:[function(require,module,exports){
+},{"./util":24,"./websocket":25}],19:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1810,7 +1989,7 @@ function setOption(option, enabled) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],19:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1818,35 +1997,6 @@ var EventEmitter = require("events").EventEmitter;
 var inherits = require("inherits");
 
 var $ = global.jQuery;
-
-var dialogHtml = '<div id="ss-connect-dialog" style="display: none;"></div><div id="ss-overlay" class="ss-gray-out" style="display: none;"></div>';
-var countdownContentsHtml = '<label>Reconnect failed. Retrying in <span id="ss-dialog-countdown"></span> seconds...</label> <a id="ss-reconnect-link" href="#" class="ss-dialog-link">Try now</a>';
-var reconnectContentsHtml = '<label>Attempting to reconnect...</label><label>&nbsp;</label>';
-var disconnectContentsHtml = '<label>Disconnected from the server.</label> <a id="ss-reload-link" href="#" class="ss-dialog-link">Reload</a>';
-
-function ReconnectUI() {
-  var _this = this;
-
-  EventEmitter.call(this);
-
-  $(function () {
-    var dialog = $(dialogHtml);
-    dialog.appendTo('body');
-
-    $(document).on("click", '#ss-reconnect-link', function (e) {
-      e.preventDefault();
-      _this.emit("do-reconnect");
-    });
-    $(document).on("click", "#ss-reload-link", function (e) {
-      e.preventDefault();
-      window.location.reload();
-    });
-  });
-
-  this.updateInterval = null;
-}
-
-inherits(ReconnectUI, EventEmitter);
 
 // Relevant events:
 //
@@ -1862,65 +2012,14 @@ inherits(ReconnectUI, EventEmitter);
 // On reconnect success: show nothing
 // On stop: "Connection lost [Reload]"
 
-ReconnectUI.prototype.showCountdown = function (delay) {
-  var _this2 = this;
-
-  clearInterval(this.updateInterval);
-  if (delay < 200) return;
-  var attemptTime = Date.now() + delay;
-  $('#ss-connect-dialog').html(countdownContentsHtml);
-  $('#ss-connect-dialog').show();
-  // $('#ss-overlay').show();
-
-  function updateCountdown(seconds /* optional */) {
-    if (typeof seconds === "undefined") {
-      seconds = Math.max(0, Math.floor((attemptTime - Date.now()) / 1000)) + "";
-    }
-    $("#ss-dialog-countdown").html(seconds);
-  }
-  updateCountdown(Math.round(delay / 1000));
-  if (delay > 15000) {
-    this.updateInterval = setInterval(function () {
-      if (Date.now() > attemptTime) {
-        clearInterval(_this2.updateInterval);
-      } else {
-        updateCountdown();
-      }
-    }, 15000);
-  }
-};
-
-ReconnectUI.prototype.showAttempting = function () {
-  clearInterval(this.updateInterval);
-  $('body').addClass('ss-reconnecting');
-  $("#ss-connect-dialog").html(reconnectContentsHtml);
-  $('#ss-connect-dialog').show();
-  // $('#ss-overlay').show();
-};
-
-ReconnectUI.prototype.hide = function () {
-  clearInterval(this.updateInterval);
-  $('body').removeClass('ss-reconnecting');
-  $('#ss-connect-dialog').hide();
-  $('#ss-overlay').hide();
-};
-
-ReconnectUI.prototype.showDisconnected = function () {
-  clearInterval(this.updateInterval);
-  $('#ss-connect-dialog').html(disconnectContentsHtml).show();
-  $('#ss-overlay').show();
-  $('body').removeClass('ss-reconnecting');
-  $('#ss-overlay').addClass('ss-gray-out');
-};
-
 function DelegatedUI() {
-  var _this3 = this;
+  var _this = this;
 
   EventEmitter.call(this);
 
   $(document).on("click", '#ss-reconnect-link', function (e) {
     e.preventDefault();
-    _this3.emit("do-reconnect");
+    _this.emit("do-reconnect");
   });
   $(document).on("click", "#ss-reload-link", function (e) {
     e.preventDefault();
@@ -1933,7 +2032,7 @@ function DelegatedUI() {
 inherits(DelegatedUI, EventEmitter);
 
 DelegatedUI.prototype.showCountdown = function (delay) {
-  var _this4 = this;
+  var _this2 = this;
 
   clearInterval(this.updateInterval);
   if (delay < 200) return;
@@ -1941,7 +2040,7 @@ DelegatedUI.prototype.showCountdown = function (delay) {
   global.Shiny.notifications.show({
     id: "reconnect",
     html: 'Reconnect failed. Retrying in <span id="ss-dialog-countdown"></span> seconds...',
-    action: '<a id="ss-reconnect-link" href="#" class="ss-dialog-link">Try now</a>',
+    action: '<a id="ss-reconnect-link" href="#">Try now</a>',
     closeButton: false,
     type: "warning"
   });
@@ -1957,7 +2056,7 @@ DelegatedUI.prototype.showCountdown = function (delay) {
   if (delay > 15000) {
     this.updateInterval = setInterval(function () {
       if (Date.now() > attemptTime) {
-        clearInterval(_this4.updateInterval);
+        clearInterval(_this2.updateInterval);
       } else {
         updateCountdown();
       }
@@ -1985,18 +2084,18 @@ DelegatedUI.prototype.showDisconnected = function () {
   global.Shiny.notifications.show({
     id: "reconnect",
     html: "Disconnected from the server.",
-    action: '<a id="ss-reload-link" href="#" class="ss-dialog-link">Reload</a>',
+    action: '<a id="ss-reload-link" href="#">Reload</a>',
     closeButton: false,
     type: "warning"
   });
 };
 
 exports.createReconnectUI = function () {
-  if (global.Shiny.notifications) return new DelegatedUI();else return new ReconnectUI();
+  return new DelegatedUI();
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"events":26,"inherits":30}],20:[function(require,module,exports){
+},{"events":27,"inherits":31}],21:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -2049,7 +2148,7 @@ exports.createFactory = function (options) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../common/path-params":4,"./log":14,"./protocol-chooser":18}],21:[function(require,module,exports){
+},{"../common/path-params":4,"./log":14,"./protocol-chooser":19}],22:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -2072,7 +2171,7 @@ function createSocket() {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],22:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -2132,7 +2231,7 @@ function onLicense(Shiny, license) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],23:[function(require,module,exports){
+},{}],24:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -2322,7 +2421,7 @@ Object.defineProperty(PauseConnection.prototype, "extensions", {
 });
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./log":14,"pinkyswear":31}],24:[function(require,module,exports){
+},{"./log":14,"pinkyswear":32}],25:[function(require,module,exports){
 "use strict";
 
 // Constants from WebSocket and SockJS APIs.
@@ -2332,7 +2431,7 @@ exports.OPEN = 1;
 exports.CLOSING = 2;
 exports.CLOSED = 3;
 
-},{}],25:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 // http://wiki.commonjs.org/wiki/Unit_Testing/1.0
 //
 // THIS IS NOT TESTED NOR LIKELY TO WORK OUTSIDE V8!
@@ -2693,7 +2792,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":29}],26:[function(require,module,exports){
+},{"util/":30}],27:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -2993,7 +3092,7 @@ function isUndefined(arg) {
   return arg === void 0;
 }
 
-},{}],27:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -3086,14 +3185,14 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],28:[function(require,module,exports){
+},{}],29:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],29:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -3683,7 +3782,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":28,"_process":27,"inherits":30}],30:[function(require,module,exports){
+},{"./support/isBuffer":29,"_process":28,"inherits":31}],31:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -3708,7 +3807,7 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],31:[function(require,module,exports){
+},{}],32:[function(require,module,exports){
 (function (process){
 /*
  * PinkySwear.js 2.2.2 - Minimalistic implementation of the Promises/A+ spec
@@ -3829,4 +3928,4 @@ if (typeof Object.create === 'function') {
 
 
 }).call(this,require('_process'))
-},{"_process":27}]},{},[15]);
+},{"_process":28}]},{},[15]);
