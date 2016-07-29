@@ -266,7 +266,7 @@ exports.extractParams = function (url) {
   var urlObj = parseUrl(url);
   var result = {};
   for (var i = 0; i < urlObj.params.length; i++) {
-    var m = /^([^=]+)=(.*)$/.exec(urlObj.params[i]);
+    var m = /^(.+?)=(.*)$/.exec(urlObj.params[i]);
     result[m[1]] = m[2];
   }
   return result;
@@ -2943,6 +2943,7 @@ if (typeof Object.create === 'function') {
 }
 
 },{}],28:[function(require,module,exports){
+(function (process){
 /*
  * PinkySwear.js 2.2.2 - Minimalistic implementation of the Promises/A+ spec
  * 
@@ -2990,6 +2991,8 @@ if (typeof Object.create === 'function') {
 	function defer(callback) {
 		if (typeof setImmediate != 'undefined')
 			setImmediate(callback);
+		else if (typeof process != 'undefined' && process['nextTick'])
+			process['nextTick'](callback);
 		else
 			setTimeout(callback, 0);
 	}
@@ -3059,7 +3062,8 @@ if (typeof Object.create === 'function') {
 })(typeof module == 'undefined' ? [window, 'pinkySwear'] : [module, 'exports']);
 
 
-},{}],29:[function(require,module,exports){
+}).call(this,require('_process'))
+},{"_process":29}],29:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
