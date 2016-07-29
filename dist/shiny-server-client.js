@@ -382,7 +382,7 @@ function extendSession() {
 // * Reads from ctx: nothing
 exports.decorate = function (factory, options) {
   return function (url, ctx, callback) {
-    var duration = options.extendSessionInterval || 5 * 1000;
+    var duration = options.extendSessionInterval || 5 * 60 * 1000;
 
     // Use this interval-id to shut down the interval when we lose our
     // connection to the server.
