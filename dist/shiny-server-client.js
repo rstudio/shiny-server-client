@@ -1194,7 +1194,8 @@ var reconnectUI = new ReconnectUI();
  *
  *   reconnectTimeout: 15000,
  *   connectErrorDelay: 500,
- *   disableProtocols: []
+ *   disableProtocols: [],
+ *   transportDebugging: false
  * }
  *
  */
@@ -1953,9 +1954,14 @@ exports.createFactory = function (options) {
       }
     });
 
-    var conn = new global.SockJS(url, null, {
-      protocols_whitelist: whitelist
-    });
+    var transportDebugging = options.transportDebugging && options.transportDebugging == true;
+
+    var sockjsOptions = {
+      protocols_whitelist: whitelist,
+      debug: transportDebugging
+    };
+
+    var conn = new global.SockJS(url, null, sockjsOptions);
     currConn = conn;
 
     callback(null, conn);
