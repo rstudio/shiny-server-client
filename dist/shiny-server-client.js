@@ -1263,6 +1263,12 @@ function initSession(shiny, options, shinyServer) {
 
         factory(url, ctx, function (err, conn) {
           pc.resolve(err, conn);
+          conn.onclose = function (e) {
+            if (!options.reconnect) {
+              log("connection closed; reconnect not enabled");
+              reconnectUI.showDisconnected();
+            }
+          };
         });
 
         assert(ctx.multiplexClient);
