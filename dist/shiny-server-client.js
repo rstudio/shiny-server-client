@@ -370,7 +370,6 @@ exports.decorate = function (factory, options) {
     factory(url, ctx, function (err, conn) {
       var wrapper = new BaseConnectionDecorator(conn);
       conn.onclose = function (e) {
-        alert("Jonathan");
         ctx.emit("disconnect", e);
         if (wrapper.onclose) {
           wrapper.onclose.apply(wrapper, arguments);
