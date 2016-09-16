@@ -1954,7 +1954,7 @@ exports.createFactory = function (options) {
       }
     });
 
-    var transportDebugging = options.transportDebugging && options.transportDebugging == true;
+    var transportDebugging = options.transportDebugging == true;
 
     var sockjsOptions = {
       protocols_whitelist: whitelist,
