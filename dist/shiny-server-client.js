@@ -375,6 +375,7 @@ exports.decorate = function (factory, options) {
           wrapper.onclose.apply(wrapper, arguments);
         }
       };
+
       callback(err, wrapper);
     });
   };
