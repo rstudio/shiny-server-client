@@ -1239,8 +1239,7 @@ function initSession(shiny, options, shinyServer) {
       }
       if (options.reconnect) {
         factory = reconnect.decorate(factory, options);
-      }
-      if (!options.reconnect) {
+      } else {
         factory = disconnect.decorate(factory, options);
       }
       if (options.extendSession) {
