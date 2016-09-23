@@ -1373,6 +1373,10 @@ function fixupInternalLinks() {
   });
 }
 
+global.Shiny.createSocket = function () {
+  throw new Error("shiny-server-client was loaded but preShinyInit() was not called");
+};
+
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"./decorators/connection-context":7,"./decorators/disconnect":8,"./decorators/extend-session":9,"./decorators/multiplex":10,"./decorators/reconnect":11,"./decorators/token":12,"./decorators/worker-id":13,"./fixup-url":14,"./log":15,"./promised-connection":18,"./reconnect-ui":20,"./sockjs":21,"./subapp":22,"./ui":23,"assert":26}],17:[function(require,module,exports){
 (function (global){
