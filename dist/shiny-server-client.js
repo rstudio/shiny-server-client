@@ -1223,8 +1223,6 @@ var reconnectUI = new ReconnectUI();
  *
  */
 function initSession(shiny, options, shinyServer) {
-  ProtocolChooser.init(shinyServer, options.disableProtocols);
-
   if (subapp.isSubApp()) {
     shiny.createSocket = function () {
       return subapp.createSocket();
@@ -1232,6 +1230,7 @@ function initSession(shiny, options, shinyServer) {
   } else {
     (function () {
       // Not a subapp
+      ProtocolChooser.init(shinyServer, options.disableProtocols);
 
       var factory = sockjs.createFactory(options);
       if (options.workerId) {
@@ -1337,16 +1336,18 @@ global.preShinyInit = function (options) {
   global.ShinyServer = global.ShinyServer || {};
   initSession(global.Shiny, options, global.ShinyServer);
 
-  /*eslint-disable no-console*/
-  global.Shiny.oncustommessage = function (message) {
-    if (message.license) ui.onLicense(global.Shiny, message.license);
-    if (message.credentials) ui.onLoggedIn(message.credentials);
+  if (!subapp.isSubApp()) {
+    /*eslint-disable no-console*/
+    global.Shiny.oncustommessage = function (message) {
+      if (message.license) ui.onLicense(global.Shiny, message.license);
+      if (message.credentials) ui.onLoggedIn(message.credentials);
 
-    if (typeof message === "string" && console.log) console.log(message); // Legacy format
-    if (message.alert && console.log) console.log(message.alert);
-    if (message.console && console.log) console.log(message.console);
-  };
-  /*eslint-enable no-console*/
+      if (typeof message === "string" && console.log) console.log(message); // Legacy format
+      if (message.alert && console.log) console.log(message.alert);
+      if (message.console && console.log) console.log(message.console);
+    };
+    /*eslint-enable no-console*/
+  }
 };
 
 global.fixupInternalLinks = fixupInternalLinks;
