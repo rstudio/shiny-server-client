@@ -11,7 +11,8 @@ function parseId(str) {
 }
 
 exports.parseTag = function(val) {
-  var m = /^([\dA-F]+)#(.*)$/.exec(val);
+  // [\s\S] instead of . because the val might include newlines
+  var m = /^([\dA-F]+)#([\s\S]*)$/.exec(val);
   if (!m) {
     return null;
   }
