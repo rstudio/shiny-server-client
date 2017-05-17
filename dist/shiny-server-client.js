@@ -1234,7 +1234,7 @@ function initSession(shiny, options, shinyServer) {
     (function () {
       // Not a subapp
 
-      var factory = sockjs.createFactory(options);
+      var factory = sockjs.createFactory(ProtocolChooser, options);
       if (options.workerId) {
         factory = workerId.decorate(factory, options);
       }
@@ -1754,7 +1754,7 @@ exports.init = function (shinyServer, disableProtocols) {
     }
   }
 
-  if (!whitelist) {
+  if (whitelist.length == 0) {
     whitelist = availableOptions;
   }
 
@@ -1951,7 +1951,6 @@ ReconnectUI.prototype.showDisconnected = function () {
 
 var log = require("./log");
 var pathParams = require("../common/path-params");
-
 var currConn = null;
 
 global.__shinyserverdebug__ = {
@@ -1975,18 +1974,26 @@ global.__shinyserverdebug__ = {
 
 // options.disableProtocols can be an array of protocols to remove from the
 // whitelist
-exports.createFactory = function (options) {
+exports.createFactory = function (protocolChooser, options) {
   return function (url, context, callback) {
     if (!callback) throw new Error("callback is required");
 
     url = pathParams.reorderPathParams(url, ["n", "o", "t", "w", "s"]);
 
     var whitelist = [];
-    require("./protocol-chooser").whitelist.forEach(function (prot) {
+    protocolChooser.whitelist.forEach(function (prot) {
       if (!options.disableProtocols || options.disableProtocols.indexOf(prot) < 0) {
         whitelist.push(prot);
       }
     });
+
+    // If we are left with an empty whitelist, add a dummy protocol for the
+    // edge case where we end up with no valid protocols. SockJS interprets an
+    // empty protocols_whitelist as permitting _all_ protocols. Useful when
+    // trying to test behavior when all protocols are disabled.
+    if (whitelist.length == 0) {
+      whitelist.push("dummy");
+    }
 
     var transportDebugging = options.transportDebugging == true;
 
@@ -2003,7 +2010,7 @@ exports.createFactory = function (options) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../common/path-params":4,"./log":15,"./protocol-chooser":19}],22:[function(require,module,exports){
+},{"../common/path-params":4,"./log":15}],22:[function(require,module,exports){
 (function (global){
 "use strict";
 
