@@ -1091,7 +1091,7 @@ exports.decorate = function (factory, options) {
 
     if (!worker) {
       // Check to see if we were assigned a base href
-      var base = global.jQuery('base').attr('href');
+      var base = global.jQuery('base').attr('href') || global.location.href;
       // Extract the worker ID if it's included in a larger URL.
       var mtch = base.match(/_w_(\w+)\//);
       base = mtch[1];
