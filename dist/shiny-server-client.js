@@ -1738,6 +1738,11 @@ exports.init = function (shinyServer, disableProtocols) {
 
   var availableOptions = ["websocket", "xdr-streaming", "xhr-streaming", "iframe-eventsource", "iframe-htmlfile", "xdr-polling", "xhr-polling", "iframe-xhr-polling", "jsonp-polling"];
 
+  // MS Edge works very poorly with xhr-streaming (repro'd with shinyapps.io and RSC on Edge 17.17134)
+  if (/\bEdge\//.test(window.navigator.userAgent)) {
+    availableOptions.splice($.inArray("xhr-streaming", availableOptions), 1);
+  }
+
   var store = null;
 
   if (supports_html5_storage()) {
