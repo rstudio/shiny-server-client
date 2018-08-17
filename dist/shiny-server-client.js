@@ -1737,14 +1737,9 @@ exports.init = function (shinyServer, disableProtocols) {
   }
 
   var availableOptions = ["websocket", "xdr-streaming", "xhr-streaming", "iframe-eventsource", "iframe-htmlfile", "xdr-polling", "xhr-polling", "iframe-xhr-polling", "jsonp-polling"];
-
-  // MS Edge works very poorly with xhr-streaming (repro'd with shinyapps.io and RSC on Edge 17.17134)
-  if (/\bEdge\//.test(window.navigator.userAgent)) {
-    availableOptions.splice($.inArray("xhr-streaming", availableOptions), 1);
-  }
-
   var store = null;
 
+  // If a whitelist exists in localstorage, load that instead of the default whitelist
   if (supports_html5_storage()) {
     store = window.localStorage;
     var whitelistStr = store["shiny.whitelist"];
@@ -1764,6 +1759,10 @@ exports.init = function (shinyServer, disableProtocols) {
 
   if (whitelist.length == 0) {
     whitelist = availableOptions;
+    // MS Edge works very poorly with xhr-streaming (repro'd with shinyapps.io and RSC on Edge 17.17134)
+    if (/\bEdge\//.test(window.navigator.userAgent)) {
+      whitelist.splice($.inArray("xhr-streaming", whitelist), 1);
+    }
   }
 
   var networkSelectorVisible = false;
