@@ -1737,19 +1737,22 @@ exports.init = function (shinyServer, disableProtocols) {
   }
 
   var availableOptions = ["websocket", "xdr-streaming", "xhr-streaming", "iframe-eventsource", "iframe-htmlfile", "xdr-polling", "xhr-polling", "iframe-xhr-polling", "jsonp-polling"];
-
+  // `slice` with no args is a shallow clone. since `availableOptions` is all strings, it's de facto deep cloned.
+  var defaultPermitted = availableOptions.slice();
   // MS Edge works very poorly with xhr-streaming (repro'd with shinyapps.io and RSC on Edge 17.17134)
   if (/\bEdge\//.test(window.navigator.userAgent)) {
-    availableOptions.splice($.inArray("xhr-streaming", availableOptions), 1);
+    defaultPermitted.splice($.inArray("xhr-streaming", defaultPermitted), 1);
   }
 
   var store = null;
 
+  // If a whitelist exists in localstorage, load that instead of the default whitelist
   if (supports_html5_storage()) {
     store = window.localStorage;
     var whitelistStr = store["shiny.whitelist"];
     if (!whitelistStr || whitelistStr === "") {
-      whitelist = availableOptions;
+      // use our user-agent defaults if not specified
+      whitelist = defaultPermitted;
     } else {
       whitelist = JSON.parse(whitelistStr);
       // Regardless of what the user set, disable any protocols that aren't offered by the server.
@@ -1760,10 +1763,8 @@ exports.init = function (shinyServer, disableProtocols) {
         }
       });
     }
-  }
-
-  if (whitelist.length == 0) {
-    whitelist = availableOptions;
+  } else {
+    whitelist = defaultPermitted;
   }
 
   var networkSelectorVisible = false;
