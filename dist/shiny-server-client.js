@@ -1,11 +1,10 @@
 (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
-"use strict";
-
-// No ES6 allowed in this directory!
+"use strict"; // No ES6 allowed in this directory!
 
 var message_utils = require("./message-utils");
 
 module.exports = MessageBuffer;
+
 function MessageBuffer() {
   this._messages = [];
   this._startIndex = 0;
@@ -14,22 +13,26 @@ function MessageBuffer() {
 
 MessageBuffer.prototype.write = function (msg) {
   msg = message_utils.formatId(this._messageId++) + "#" + msg;
+
   this._messages.push(msg);
+
   return msg;
 };
 
 MessageBuffer.prototype.handleACK = function (msg) {
   var ackId = message_utils.parseACK(msg);
+
   if (ackId === null) {
     return -1;
   }
-  return this.discard(ackId);
-};
 
-// Returns the number of messages that were actually
+  return this.discard(ackId);
+}; // Returns the number of messages that were actually
 // discarded.
 //
 // Can throw an error, if nextId is outside of the valid range.
+
+
 MessageBuffer.prototype.discard = function (nextId) {
   // The message ID they send is the first id *not* seen by
   // their side (and not the last id seen by them). This is
@@ -37,12 +40,15 @@ MessageBuffer.prototype.discard = function (nextId) {
   // no messages seen ("0") and makes the indexing math a
   // bit cleaner as well.
   var keepIdx = nextId - this._startIndex;
+
   if (keepIdx < 0) {
     throw new Error("Discard position id too small");
   }
+
   if (keepIdx > this._messages.length) {
     throw new Error("Discard position id too big");
   }
+
   this._messages = this._messages.slice(keepIdx);
   this._startIndex = nextId;
   return keepIdx; // equal to the number of messages we dropped
@@ -50,14 +56,16 @@ MessageBuffer.prototype.discard = function (nextId) {
 
 MessageBuffer.prototype.nextId = function () {
   return this._messageId;
-};
+}; // Can throw an error, if startId is outside of the valid range.
 
-// Can throw an error, if startId is outside of the valid range.
+
 MessageBuffer.prototype.getMessagesFrom = function (startId) {
   var from = startId - this._startIndex;
+
   if (from < 0) {
     throw new Error("Message buffer underrun detected");
   }
+
   if (from > this._messages.length) {
     throw new Error("Message id larger than expected");
   }
@@ -66,46 +74,47 @@ MessageBuffer.prototype.getMessagesFrom = function (startId) {
 };
 
 },{"./message-utils":3}],2:[function(require,module,exports){
-"use strict";
-
-// No ES6 allowed in this directory!
+"use strict"; // No ES6 allowed in this directory!
 
 var message_utils = require("./message-utils");
 
 module.exports = MessageReceiver;
+
 function MessageReceiver(ackTimeout) {
   this._pendingMsgId = 0;
   this._ackTimer = null;
-  this._ackTimeout = ackTimeout || 2000;
+  this._ackTimeout = ackTimeout || 2000; // This should be set by clients
 
-  // This should be set by clients
   this.onacktimeout = function (e) {};
 }
 
 MessageReceiver.parseId = parseId;
+
 function parseId(str) {
   return parseInt(str, 16);
 }
 
 MessageReceiver.prototype.receive = function (msg) {
   var self = this;
-
   var result = message_utils.parseTag(msg);
+
   if (!result) {
     throw new Error("Invalid robust-message, no msg-id found");
-  }
-
-  // The pending message ID is the first id *not* seen by
+  } // The pending message ID is the first id *not* seen by
   // us (as opposed to the last id seen by us). This is
   // not intuitive, but it makes it possible to indicate
   // no messages seen ("0") and makes the indexing math a
   // bit cleaner as well.
+
+
   this._pendingMsgId = result.id + 1;
 
   if (!this._ackTimer) {
     this._ackTimer = setTimeout(function () {
       self._ackTimer = null;
-      self.onacktimeout({ messageId: self._pendingMessageId });
+      self.onacktimeout({
+        messageId: self._pendingMessageId
+      });
     }, this._ackTimeout);
   }
 
@@ -128,11 +137,13 @@ MessageReceiver.prototype.CONTINUE = function () {
 "use strict";
 
 exports.formatId = formatId;
+
 function formatId(id) {
   return id.toString(16).toUpperCase();
 }
 
 exports.parseId = parseId;
+
 function parseId(str) {
   return parseInt(str, 16);
 }
@@ -140,6 +151,7 @@ function parseId(str) {
 exports.parseTag = function (val) {
   // [\s\S] instead of . because the val might include newlines
   var m = /^([\dA-F]+)#([\s\S]*)$/.exec(val);
+
   if (!m) {
     return null;
   }
@@ -152,17 +164,21 @@ exports.parseTag = function (val) {
 
 exports.parseCONTINUE = function (val) {
   var m = /^CONTINUE ([\dA-F]+)$/.exec(val);
+
   if (!m) {
     return null;
   }
+
   return parseId(m[1]);
 };
 
 exports.parseACK = function (val) {
   var m = /^ACK ([\dA-F]+)$/.exec(val);
+
   if (!m) {
     return null;
   }
+
   return parseId(m[1]);
 };
 
@@ -173,33 +189,36 @@ var assert = require("assert");
 
 exports.addPathParams = function (url, params) {
   var pathFragment = "";
+
   for (var key in params) {
-    if (params.hasOwnProperty(key)) {
+    if (Object.prototype.hasOwnProperty.call(params, key)) {
       if (!/^\w*$/.test(key) || !/^\w*$/.test(params[key])) {
         throw new Error("util.addPathParams doesn't implement escaping");
       }
+
       pathFragment += "/" + key + "=" + params[key];
     }
   }
+
   return url.replace(/\/?(\?|$)/, pathFragment + "$1");
 };
 
 function parseUrl(url) {
   var urlParts = /^([^?]*)(\?.*)?$/.exec(url);
-  assert(urlParts);
+  assert(urlParts); // Could be full URL, absolute path, or relative path
 
-  // Could be full URL, absolute path, or relative path
   var mainUrl = urlParts[1];
   var search = urlParts[2] || ""; // Could be nothing
 
-  var chunks = mainUrl.split(/\//);
+  var chunks = mainUrl.split(/\//); // Find first chunk that's either "" or "name=value"
 
-  // Find first chunk that's either "" or "name=value"
   var firstParamIndex = chunks.length;
   var lastParamIndex;
   var seenParam = false; // Have we encountered any param yet?
+
   while (firstParamIndex > 0) {
     var prevChunk = chunks[firstParamIndex - 1];
+
     if (/^[a-z]+=/i.test(prevChunk)) {
       if (!lastParamIndex) lastParamIndex = firstParamIndex;
       seenParam = true;
@@ -209,9 +228,9 @@ function parseUrl(url) {
     } else {
       break;
     }
-  }
+  } // No params detected
 
-  // No params detected
+
   if (!seenParam) {
     return {
       prefix: chunks,
@@ -223,7 +242,6 @@ function parseUrl(url) {
 
   assert(firstParamIndex >= 0 && firstParamIndex <= chunks.length);
   assert(lastParamIndex >= 0 && firstParamIndex <= chunks.length);
-
   return {
     prefix: chunks.slice(0, firstParamIndex),
     params: chunks.slice(firstParamIndex, lastParamIndex),
@@ -238,38 +256,40 @@ function formatUrl(urlObj) {
 }
 
 exports.reorderPathParams = function (url, order) {
-  var urlObj = parseUrl(url);
+  var urlObj = parseUrl(url); // Filter out empty chunks
 
-  // Filter out empty chunks
   var params = urlObj.params.filter(function (v) {
     return v.length > 0;
-  });
+  }); // Now actually reorder the chunks
 
-  // Now actually reorder the chunks
   var frontParams = [];
+
   for (var i = 0; i < params.length; i++) {
     var m = /^(.+)=(.*)$/.exec(params[i]);
     assert(m);
     var desiredOrder = order.indexOf(m[1]);
+
     if (desiredOrder >= 0) {
       frontParams[desiredOrder] = params[i];
       delete params[i];
     }
   }
+
   urlObj.params = frontParams.concat(params).filter(function (v) {
     return typeof v !== "undefined";
   });
-
   return formatUrl(urlObj);
 };
 
 exports.extractParams = function (url) {
   var urlObj = parseUrl(url);
   var result = {};
+
   for (var i = 0; i < urlObj.params.length; i++) {
     var m = /^(.+?)=(.*)$/.exec(urlObj.params[i]);
     result[m[1]] = m[2];
   }
+
   return result;
 };
 
@@ -311,16 +331,19 @@ BaseConnectionDecorator.prototype._handleOpen = function () {
     this.onopen.apply(this, arguments);
   }
 };
+
 BaseConnectionDecorator.prototype._handleMessage = function () {
   if (this.onmessage) {
     this.onmessage.apply(this, arguments);
   }
 };
+
 BaseConnectionDecorator.prototype._handleError = function () {
   if (this.onerror) {
     this.onerror.apply(this, arguments);
   }
 };
+
 BaseConnectionDecorator.prototype._handleClose = function () {
   if (this.onclose) {
     this.onclose.apply(this, arguments);
@@ -352,6 +375,7 @@ Object.defineProperty(BaseConnectionDecorator.prototype, "extensions", {
 "use strict";
 
 var EventEmitter = require("events").EventEmitter;
+
 var inherits = require("inherits");
 
 module.exports = ConnectionContext;
@@ -359,6 +383,7 @@ module.exports = ConnectionContext;
 function ConnectionContext() {
   EventEmitter.call(this);
 }
+
 inherits(ConnectionContext, EventEmitter);
 
 },{"events":30,"inherits":31}],8:[function(require,module,exports){
@@ -370,8 +395,10 @@ exports.decorate = function (factory, options) {
   return function (url, ctx, callback) {
     factory(url, ctx, function (err, conn) {
       var wrapper = new BaseConnectionDecorator(conn);
+
       conn.onclose = function (e) {
         ctx.emit("disconnect", e);
+
         if (wrapper.onclose) {
           wrapper.onclose.apply(wrapper, arguments);
         }
@@ -387,37 +414,40 @@ exports.decorate = function (factory, options) {
 "use strict";
 
 var BaseConnectionDecorator = require("./base-connection-decorator");
+
 var debug = require("../debug");
 
 function extendSession() {
-  global.jQuery.ajax("__extendsession__", { type: "POST", async: true }).done(function () {
+  global.jQuery.ajax("__extendsession__", {
+    type: "POST",
+    async: true
+  }).done(function () {
     debug("__extendsession__ succeeded");
   }).fail(function () {
     debug("__extendsession__ failed");
   });
-}
-
-// Sends __extendsession__ requests repeatedly while connection to the server
+} // Sends __extendsession__ requests repeatedly while connection to the server
 // exists. This keeps the session alive by causing the cookies to be refreshed.
 //
 // * Writes to ctx: nothing
 // * Reads from ctx: nothing
+
+
 exports.decorate = function (factory, options) {
   return function (url, ctx, callback) {
-    var duration = options.extendSessionInterval || 5 * 60 * 1000;
-
-    // Use this interval-id to shut down the interval when we lose our
+    var duration = options.extendSessionInterval || 5 * 60 * 1000; // Use this interval-id to shut down the interval when we lose our
     // connection to the server.
-    var handle = null;
 
+    var handle = null;
     factory(url, ctx, function (err, conn) {
       if (!err) {
         handle = setInterval(extendSession, duration);
-      }
-
-      // Pass through the connection except clear the extendSessionInterval on
+      } // Pass through the connection except clear the extendSessionInterval on
       // close.
+
+
       var wrapper = new BaseConnectionDecorator(conn);
+
       conn.onclose = function () {
         clearInterval(handle);
         handle = null;
@@ -437,10 +467,10 @@ exports.decorate = function (factory, options) {
 var MultiplexClient = require("../multiplex-client");
 
 var util = require("../util");
-var PromisedConnection = require("../promised-connection");
-var pathParams = require("../../common/path-params");
 
-// The job of this decorator is to wrap the underlying
+var PromisedConnection = require("../promised-connection");
+
+var pathParams = require("../../common/path-params"); // The job of this decorator is to wrap the underlying
 // connection with our Multiplexing protocol, designed
 // to allow multiple iframes to share the same connection
 // on the client but proxy out to multiple sessions on
@@ -450,36 +480,39 @@ var pathParams = require("../../common/path-params");
 //
 // * Writes to ctx: multiplexClient (MultiplexClient)
 // * Reads from ctx: nothing
+
+
 exports.decorate = function (factory, options) {
   return function (url, ctx, callback) {
-
     var multiplexClientPromise = util.promise();
 
     if (options.subappTag) {
-      url = pathParams.addPathParams(url, { s: 0 });
+      url = pathParams.addPathParams(url, {
+        s: 0
+      });
     }
 
     ctx.multiplexClient = {
       open: function open(relUrl) {
         var pc = new PromisedConnection();
         multiplexClientPromise.then(function (client) {
-          var urlWithParams = pathParams.addPathParams(relUrl, { s: 1 });
+          var urlWithParams = pathParams.addPathParams(relUrl, {
+            s: 1
+          });
           pc.resolve(null, client.open(urlWithParams));
         }).then(null, function (err) {
           pc.resolve(err);
         });
-
         return pc;
       }
     };
-
     return factory(url, ctx, function (err, conn) {
       if (err) {
         callback(err);
         return;
       }
 
-      var m = /\/([^\/]+)$/.exec(global.location.pathname);
+      var m = /\/([^/]+)$/.exec(global.location.pathname);
       var relUrl = m ? m[1] : "";
 
       try {
@@ -499,53 +532,63 @@ exports.decorate = function (factory, options) {
 "use strict";
 
 var assert = require("assert");
+
 var EventEmitter = require("events").EventEmitter;
 
 var inherits = require("inherits");
 
 var debug = require("../debug");
+
 var log = require("../log");
+
 var util = require("../util");
+
 var WebSocket = require("../websocket");
 
 var BaseConnectionDecorator = require("./base-connection-decorator");
+
 var MessageBuffer = require("../../common/message-buffer");
+
 var MessageReceiver = require("../../common/message-receiver");
+
 var message_utils = require("../../common/message-utils");
+
 var pathParams = require("../../common/path-params");
 
 function generateId(size) {
   var chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
   var id = '';
+
   for (var i = 0; i < size; i++) {
     var rnum = Math.floor(Math.random() * chars.length);
     id += chars.substring(rnum, rnum + 1);
   }
-  return id;
-}
 
-// The job of this decorator is to serve as a "logical"
+  return id;
+} // The job of this decorator is to serve as a "logical"
 // connection that can survive the death of a "physical"
 // connection, and restore the connection.
 //
 // * Reads from options: reconnectTimeout (in millis; <0 to disable)
 // * Writes to ctx: nothing
 // * Reads from ctx: nothing
+
+
 exports.decorate = function (factory, options) {
   // Returns a connection promise
   return function (url, ctx, callback) {
-
     // The robustId is an id that will be shared by all
     // physical connections belonging to this logical
     // connection. We will include it in the URL.
     var robustId = generateId(18);
-
     var timeout = options.reconnectTimeout;
+
     if (typeof timeout === "undefined") {
       timeout = 15000;
     }
 
     var connectErrorDelay = options.connectErrorDelay;
+
     if (typeof connectErrorDelay === "undefined") {
       // Delay return of promise by 500 milliseconds so
       // "Attempting reconnect" UI doesn't flash so quickly
@@ -556,15 +599,15 @@ exports.decorate = function (factory, options) {
     conn = new BufferedResendConnection(conn);
     callback(null, conn);
   };
-};
-
-// Utility function takes a (potentially still CONNECTING)
+}; // Utility function takes a (potentially still CONNECTING)
 // connection, and returns a promise. The promise resolves
 // successfully if onopen is called, and resolves as an
 // error if onerror or onclose is called.
-function promisify_p(conn) {
 
+
+function promisify_p(conn) {
   var promise = util.promise();
+
   if (conn.readyState === WebSocket.OPEN) {
     promise(true, [conn]);
   } else if (conn.readyState === WebSocket.CLOSING || conn.readyState === WebSocket.CLOSED) {
@@ -573,8 +616,7 @@ function promisify_p(conn) {
     conn.onopen = function () {
       conn.onopen = null;
       conn.onclose = null;
-      conn.onerror = null;
-      // PauseConnection helps avoid a race condition here. Between
+      conn.onerror = null; // PauseConnection helps avoid a race condition here. Between
       // conn.onopen being called and the promise resolution code
       // (onFulfilled/onRejected) being invoked, there's more than
       // enough time for onmessage/onerror/onclose events to occur.
@@ -591,14 +633,17 @@ function promisify_p(conn) {
       // least will manifest itself as a "stuck" connection, rather
       // than silently dropping a single message, which could be
       // much harder for the user to know that something is wrong.
+
       promise(true, [new util.PauseConnection(conn)]);
     };
+
     conn.onerror = function (e) {
       conn.onopen = null;
       conn.onclose = null;
       conn.onerror = null;
       promise(false, [new Error("WebSocket errored"), e]);
     };
+
     conn.onclose = function (e) {
       conn.onopen = null;
       conn.onclose = null;
@@ -611,7 +656,6 @@ function promisify_p(conn) {
 
   return promise;
 }
-
 /*
 Things that can move this robust connection into different states:
 
@@ -624,22 +668,24 @@ Things that can move this robust connection into different states:
 5) When a wasClean disconnect occurs, go to CLOSED.
 */
 
+
 function RobustConnection(timeout, factory, url, ctx, robustId, connectErrorDelay) {
   this._timeout = timeout;
   this._factory = factory;
   this._url = url;
   this.url = url; // public version; overridden by physical connections
+
   this._ctx = ctx;
   this._robustId = robustId;
   this._connectErrorDelay = connectErrorDelay;
   this._conn = null;
-  this._stayClosed = false;
+  this._stayClosed = false; // Initialize all event handlers to no-op.
 
-  // Initialize all event handlers to no-op.
-  this.onopen = this.onclose = this.onerror = this.onmessage = function () {};
+  this.onopen = this.onclose = this.onerror = this.onmessage = function () {}; // We'll need to carefully maintain the readyState manually.
 
-  // We'll need to carefully maintain the readyState manually.
+
   this._setReadyState(WebSocket.CONNECTING);
+
   this._connect(this._timeout);
 }
 
@@ -647,22 +693,21 @@ RobustConnection.prototype._setReadyState = function (value) {
   if (typeof this.readyState !== "undefined" && this.readyState > value) {
     throw new Error("Invalid readyState transition: " + this.readyState + " to " + value);
   }
+
   this.readyState = value;
 };
 
 RobustConnection.prototype._acceptConn = function (conn) {
-
   // It's a programmer error to accept a connection while the previous
   // connection is still active...
-  assert(!this._conn || this._conn.readyState > WebSocket.OPEN, "_acceptConn called while previous conn was still active");
-  // ...or for the connection itself not to be open...
-  assert(conn.readyState === WebSocket.OPEN, "_acceptConn called with non-open conn: " + conn.readyState);
-  // ...or for the RobustConnection itself to be closed.
-  assert(this.readyState === WebSocket.CONNECTING || this.readyState === WebSocket.OPEN, "_acceptConn called while readyState was " + this.readyState);
+  assert(!this._conn || this._conn.readyState > WebSocket.OPEN, "_acceptConn called while previous conn was still active"); // ...or for the connection itself not to be open...
 
-  this._conn = conn;
-  // onopen intentionally not set; if we're here, we're
+  assert(conn.readyState === WebSocket.OPEN, "_acceptConn called with non-open conn: " + conn.readyState); // ...or for the RobustConnection itself to be closed.
+
+  assert(this.readyState === WebSocket.CONNECTING || this.readyState === WebSocket.OPEN, "_acceptConn called while readyState was " + this.readyState);
+  this._conn = conn; // onopen intentionally not set; if we're here, we're
   // already in the OPEN state.
+
   this._conn.onclose = this._handleClose.bind(this);
   this._conn.onmessage = this._handleMessage.bind(this);
   this._conn.onerror = this._handleError.bind(this);
@@ -674,11 +719,11 @@ RobustConnection.prototype._acceptConn = function (conn) {
     // This is our first time getting an open connection!
     // Transition to OPEN and let our clients know.
     this._setReadyState(WebSocket.OPEN);
+
     if (this.onopen) this.onopen(util.createEvent("open"));
   } else {
-    log("Connection restored");
+    log("Connection restored"); // Otherwise, let our clients know that we've just reconnected.
 
-    // Otherwise, let our clients know that we've just reconnected.
     this.onreconnect(util.createEvent("reconnect"));
   }
 };
@@ -691,28 +736,27 @@ RobustConnection.prototype._clearConn = function () {
     this._conn.onmessage = null;
     this._conn = null;
   }
-};
-
-// Call this when we don't have a connection (either we have never
+}; // Call this when we don't have a connection (either we have never
 // had one yet, or the last one we had is now closed and removed)
 // but we want to get a new one.
+
+
 RobustConnection.prototype._connect = function (timeoutMillis) {
   var _this = this;
 
   assert(!this._conn, "_connect called but _conn is not null");
-  assert(this.readyState <= WebSocket.OPEN, "_connect called from wrong readyState");
-
-  // This function can be called repeatedly to get a connection promise.
+  assert(this.readyState <= WebSocket.OPEN, "_connect called from wrong readyState"); // This function can be called repeatedly to get a connection promise.
   // Because it uses promisify_p, a successful resolve of the promise
   // means not only that the connection was created, but also entered
   // the WebSocket.OPEN state.
+
   var open_p = function open_p() {
     var params = {};
     params[_this.readyState === WebSocket.CONNECTING ? "n" : "o"] = _this._robustId;
     var url = pathParams.addPathParams(_this._url, params);
-
     var promise = util.promise();
     var connectErrorDelay = _this._connectErrorDelay;
+
     _this._factory(url, _this._ctx, function (err, conn) {
       if (err) {
         setTimeout(function () {
@@ -730,12 +774,13 @@ RobustConnection.prototype._connect = function (timeoutMillis) {
         }, connectErrorDelay);
       }).done();
     });
+
     return promise;
   };
 
   var expires = this.readyState !== WebSocket.OPEN ? 0 : Date.now() + timeoutMillis;
-
   var progressCallbacks = new EventEmitter();
+
   if (this.readyState === WebSocket.OPEN) {
     progressCallbacks.on("schedule", function (delay) {
       _this._ctx.emit("reconnect-schedule", delay);
@@ -754,37 +799,38 @@ RobustConnection.prototype._connect = function (timeoutMillis) {
   function doReconnect() {
     progressCallbacks.emit("retry-now");
   }
+
   this._ctx.on("do-reconnect", doReconnect);
 
   util.retryPromise_p(open_p, util.createNiceBackoffDelayFunc(), expires, progressCallbacks).then(function (conn) {
     _this._ctx.removeListener("do-reconnect", doReconnect);
 
-    assert(!_this._conn, "Connection promise fulfilled, but _conn was not null!");
-
-    // If RobustConnection.close() was called in the
+    assert(!_this._conn, "Connection promise fulfilled, but _conn was not null!"); // If RobustConnection.close() was called in the
     // meantime, close the new conn and bail out.
+
     if (_this.readyState === WebSocket.CLOSED) {
       conn.close();
       return;
     }
 
     _this._acceptConn(conn);
+
     conn.resume();
   }, function (err) {
     log(err);
+
     _this._ctx.removeListener("do-reconnect", doReconnect);
 
-    assert(!_this._conn, "Connection promise rejected, but _conn was not null!");
-
-    // If RobustConnection.close() was called in the
+    assert(!_this._conn, "Connection promise rejected, but _conn was not null!"); // If RobustConnection.close() was called in the
     // meantime, just get out of here.
+
     if (_this.readyState === WebSocket.CLOSED) {
       return;
-    }
-
-    // If we're still waiting for the initial connection, we
+    } // If we're still waiting for the initial connection, we
     // want to raise an additional error event. (Is this
     // really necessary? I'm just guessing.)
+
+
     try {
       if (_this.readyState === WebSocket.CONNECTING) {
         _this.onerror(util.createEvent("error"));
@@ -802,30 +848,34 @@ RobustConnection.prototype._connect = function (timeoutMillis) {
 };
 
 RobustConnection.prototype._handleClose = function (e) {
-  this._clearConn();
+  this._clearConn(); // Use 46xx for interactive debugging purposes to trigger reconnect
 
-  // Use 46xx for interactive debugging purposes to trigger reconnect
+
   if (!this._stayClosed && (!e.wasClean || e.code >= 4600 && e.code < 4700)) {
     log("Disconnect detected; attempting reconnect");
     this.ondisconnect(util.createEvent("disconnect"));
+
     this._connect(this._timeout);
   } else {
     // Apparently this closure was on purpose; don't try to reconnect
     this._setReadyState(WebSocket.CLOSED);
+
     this.onclose(e);
+
     this._ctx.emit("disconnect", e);
   }
-};
-
-// Event callback for this._conn.onmessage. Delegates to public
+}; // Event callback for this._conn.onmessage. Delegates to public
 // member. We have to add this level of indirection to allow
 // the value of this.onmessage to change over time.
+
+
 RobustConnection.prototype._handleMessage = function (e) {
   if (this.onmessage) this.onmessage(e);
-};
-// Event callback for this._conn.onerror. Delegates to public
+}; // Event callback for this._conn.onerror. Delegates to public
 // member. We have to add this level of indirection to allow
 // the value of this.onerror to change over time.
+
+
 RobustConnection.prototype._handleError = function (e) {
   if (this.onerror) this.onerror(e);
 };
@@ -852,39 +902,41 @@ RobustConnection.prototype.send = function (data) {
 RobustConnection.prototype.close = function (code, reason) {
   if (this.readyState === WebSocket.CLOSED) {
     return;
-  }
+  } // Be careful!!
 
-  // Be careful!!
 
   if (this._conn) {
     // If a connection is currently active, we want to call close on
     // it and, for the most part, let nature take its course.
-
     // May throw, if code or reason are invalid. I'm assuming when
     // that happens, the conn isn't actually closed, so we need to
     // undo any side effects we have done before calling close().
     try {
       this._stayClosed = true; // Make sure not to reconnect
+
       this._conn.close(code, reason);
     } catch (e) {
       // Undo the setting of the flag.
       this._stayClosed = false;
       throw e;
-    }
-
-    // If _conn.close() hasn't triggered the _handleClose handler yet
+    } // If _conn.close() hasn't triggered the _handleClose handler yet
     // (and I don't think it will have) then we need to mark ourselves
     // as CLOSING.
+
+
     this._setReadyState(Math.max(this.readyState, WebSocket.CLOSING));
   } else {
-
     // There's no active connection. Just immediately put us in closed
     // state and raise the event.
     this._setReadyState(WebSocket.CLOSED);
+
     if (this.onclose) {
       this.onclose(util.createEvent("close", {
-        currentTarget: this, target: this, srcElement: this,
-        code: code, reason: reason,
+        currentTarget: this,
+        target: this,
+        srcElement: this,
+        code: code,
+        reason: reason,
         wasClean: false
       }));
     }
@@ -895,13 +947,12 @@ function BufferedResendConnection(conn) {
   var _this2 = this;
 
   BaseConnectionDecorator.call(this, conn);
-  assert(this._conn);
+  assert(this._conn); // This connection decorator is tightly coupled to RobustConnection
 
-  // This connection decorator is tightly coupled to RobustConnection
   assert(conn.constructor === RobustConnection);
-
   this._messageBuffer = new MessageBuffer();
   this._messageReceiver = new MessageReceiver();
+
   this._messageReceiver.onacktimeout = function () {
     if (_this2._conn.readyState === WebSocket.OPEN && !_this2._disconnected) {
       _this2._conn.send(_this2._messageReceiver.ACK());
@@ -909,15 +960,13 @@ function BufferedResendConnection(conn) {
   };
 
   this._disconnected = false;
-
   conn.onopen = this._handleOpen.bind(this);
   conn.onmessage = this._handleMessage.bind(this);
   conn.onerror = this._handleError.bind(this);
-  conn.onclose = this._handleClose.bind(this);
-
-  // These two events are specific to RobustConnection. They
+  conn.onclose = this._handleClose.bind(this); // These two events are specific to RobustConnection. They
   // are used to detect potentially-temporary disruptions,
   // and successful recovery from those disruptions.
+
   conn.ondisconnect = this._handleDisconnect.bind(this);
   conn.onreconnect = this._handleReconnect.bind(this);
 }
@@ -927,6 +976,7 @@ inherits(BufferedResendConnection, BaseConnectionDecorator);
 BufferedResendConnection.prototype._handleDisconnect = function () {
   this._disconnected = true;
 };
+
 BufferedResendConnection.prototype._handleReconnect = function () {
   var _this3 = this;
 
@@ -940,13 +990,13 @@ BufferedResendConnection.prototype._handleReconnect = function () {
     }
 
     _this3._disconnected = false;
-    _this3._conn.onmessage = _this3._handleMessage.bind(_this3);
-
-    // If this is a proper, robustified connection, before we do
+    _this3._conn.onmessage = _this3._handleMessage.bind(_this3); // If this is a proper, robustified connection, before we do
     // anything else we'll get a message indicating the most
     // recent message number seen + 1 (or 0 if none seen yet).
+
     try {
       var continueId = message_utils.parseCONTINUE(e.data);
+
       if (continueId === null) {
         // Anything but ACK or CONTINUE when we were expecting CONTINUE,
         // is an error.
@@ -958,11 +1008,13 @@ BufferedResendConnection.prototype._handleReconnect = function () {
         // us to easily represent the case where the server has not
         // seen any messages (0) and also makes the iterating code here
         // a little cleaner.
-        debug("Discard and continue from message " + continueId);
-        // Note: discard can throw
-        _this3._messageBuffer.discard(continueId);
-        // Note: getMessageFrom can throw
+        debug("Discard and continue from message " + continueId); // Note: discard can throw
+
+        _this3._messageBuffer.discard(continueId); // Note: getMessageFrom can throw
+
+
         var msgs = _this3._messageBuffer.getMessagesFrom(continueId);
+
         if (msgs.length > 0) debug(msgs.length + " messages were dropped; resending");
         msgs.forEach(function (msg) {
           // This msg is already formatted by MessageBuffer (tagged with id)
@@ -972,6 +1024,7 @@ BufferedResendConnection.prototype._handleReconnect = function () {
     } catch (err) {
       log("Error: RobustConnection handshake error: " + err);
       log(err.stack);
+
       _this3.close(3007, "RobustConnection handshake error: " + err);
     }
   };
@@ -981,8 +1034,9 @@ BufferedResendConnection.prototype._handleMessage = function (e) {
   // At any time we can receive an ACK from the server that tells us
   // it's safe to discard existing messages.
   try {
-    var ackResult = this._messageBuffer.handleACK(e.data);
-    // If the message wasn't an ACK at all, ackResult is a negative num.
+    var ackResult = this._messageBuffer.handleACK(e.data); // If the message wasn't an ACK at all, ackResult is a negative num.
+
+
     if (ackResult >= 0) {
       debug(ackResult + " message(s) discarded from buffer");
       return;
@@ -1004,15 +1058,14 @@ BufferedResendConnection.prototype._handleMessage = function (e) {
 BufferedResendConnection.prototype.send = function (data) {
   if (typeof data === "undefined" || data === null) {
     throw new Error("data argument must not be undefined or null");
-  }
-
-  // Write to the message buffer, and also save the return value which
+  } // Write to the message buffer, and also save the return value which
   // is the message prepended with the id. This is what a compatible
   // server will expect to see.
-  data = this._messageBuffer.write(data);
 
-  // If not disconnected, attempt to send; otherwise, it's enough
+
+  data = this._messageBuffer.write(data); // If not disconnected, attempt to send; otherwise, it's enough
   // that we wrote it to the buffer.
+
   if (!this._disconnected) this._conn.send(data);
 };
 
@@ -1020,13 +1073,13 @@ BufferedResendConnection.prototype.send = function (data) {
 (function (global){
 "use strict";
 
-var pathParams = require("../../common/path-params");
-
-// The job of this decorator is to request a token from
+var pathParams = require("../../common/path-params"); // The job of this decorator is to request a token from
 // the server, and append that to the URL.
 //
 // * Writes to ctx: nothing
 // * Reads from ctx: nothing
+
+
 exports.decorate = function (factory, options) {
   return function (url, ctx, callback) {
     if (!exports.ajax) {
@@ -1038,7 +1091,9 @@ exports.decorate = function (factory, options) {
       cache: false,
       dataType: "text",
       success: function success(data, textStatus) {
-        var newUrl = pathParams.addPathParams(url, { "t": data });
+        var newUrl = pathParams.addPathParams(url, {
+          "t": data
+        });
         factory(newUrl, ctx, callback);
       },
       error: function error(jqXHR, textStatus, errorThrown) {
@@ -1046,10 +1101,11 @@ exports.decorate = function (factory, options) {
       }
     });
   };
-};
+}; // Override this to mock.
 
-// Override this to mock.
+
 exports.ajax = null;
+
 if (typeof global.jQuery !== "undefined") {
   exports.ajax = global.jQuery.ajax;
 }
@@ -1059,9 +1115,7 @@ if (typeof global.jQuery !== "undefined") {
 (function (global){
 "use strict";
 
-var pathParams = require("../../common/path-params");
-
-// The job of this decorator is to add the worker ID
+var pathParams = require("../../common/path-params"); // The job of this decorator is to add the worker ID
 // to the connection URL.
 //
 // In the future, this will not only read the worker
@@ -1070,31 +1124,33 @@ var pathParams = require("../../common/path-params");
 //
 // * Writes to ctx: nothing
 // * Reads from ctx: nothing
+
+
 exports.decorate = function (factory, options) {
   return function (url, ctx, callback) {
     if (!global.location) {
       // Pass-through if we're neither in a browser
       // nor have a mocked location
       return factory(url, ctx, callback);
-    }
-
-    // Search for the worker ID either in the URL query string,
+    } // Search for the worker ID either in the URL query string,
     // or in the <base href> element
+
 
     var search = global.location.search.replace(/^\?/, '');
     var worker = '';
+
     if (search.match(/\bw=[^&]+/)) {
       worker = search.match(/\bw=[^&]+/)[0].substring(2);
-    }
+    } // TODO: Dynamic workerId for reconnection case
 
-    // TODO: Dynamic workerId for reconnection case
 
     if (!worker) {
       // Check to see if we were assigned a base href
-      var base = global.jQuery('base').attr('href') || global.location.href;
-      // Extract the worker ID if it's included in a larger URL.
+      var base = global.jQuery('base').attr('href') || global.location.href; // Extract the worker ID if it's included in a larger URL.
+
       var mtch = base.match(/_w_(\w+)\//);
       base = mtch[1];
+
       if (base) {
         // Trim trailing slash
         base = base.replace(/\/$/, '');
@@ -1104,8 +1160,11 @@ exports.decorate = function (factory, options) {
     }
 
     if (worker) {
-      url = pathParams.addPathParams(url, { "w": worker });
+      url = pathParams.addPathParams(url, {
+        "w": worker
+      });
     }
+
     return factory(url, ctx, callback);
   };
 };
@@ -1119,9 +1178,10 @@ var assert = require("assert");
 module.exports = fixupUrl;
 
 function fixupUrl(href, location) {
-  var origHref = href;
-  // Strip the worker out of the href
+  var origHref = href; // Strip the worker out of the href
+
   href = href.replace(/\/_w_[a-f0-9]+\//g, "/");
+
   if (href === origHref) {
     // Must not have been a relative URL, or base href isn't in effect.
     return origHref;
@@ -1164,22 +1224,36 @@ module.exports.suppress = false;
 "use strict";
 
 var assert = require("assert");
-var fixupUrl = require("./fixup-url");
-var log = require("./log");
-var token = require("./decorators/token");
-var subapp = require("./subapp");
-var extendSession = require("./decorators/extend-session");
-var reconnect = require("./decorators/reconnect");
-var disconnect = require("./decorators/disconnect");
-var multiplex = require("./decorators/multiplex");
-var workerId = require("./decorators/worker-id");
-var sockjs = require("./sockjs");
-var PromisedConnection = require("./promised-connection");
-var ConnectionContext = require("./decorators/connection-context");
-var ReconnectUI = require("./reconnect-ui");
-var ui = require("./ui");
-var ProtocolChooser = require("./protocol-chooser");
 
+var fixupUrl = require("./fixup-url");
+
+var log = require("./log");
+
+var token = require("./decorators/token");
+
+var subapp = require("./subapp");
+
+var extendSession = require("./decorators/extend-session");
+
+var reconnect = require("./decorators/reconnect");
+
+var disconnect = require("./decorators/disconnect");
+
+var multiplex = require("./decorators/multiplex");
+
+var workerId = require("./decorators/worker-id");
+
+var sockjs = require("./sockjs");
+
+var PromisedConnection = require("./promised-connection");
+
+var ConnectionContext = require("./decorators/connection-context");
+
+var ReconnectUI = require("./reconnect-ui");
+
+var ui = require("./ui");
+
+var ProtocolChooser = require("./protocol-chooser");
 /*
 Connection factories:
 - SockJS (reconnect-aware)
@@ -1204,8 +1278,8 @@ SSP/RSC config:
     Subapp
 */
 
-var reconnectUI = new ReconnectUI();
 
+var reconnectUI = new ReconnectUI();
 /**
  * options = {
  *   debugging: false,
@@ -1223,6 +1297,7 @@ var reconnectUI = new ReconnectUI();
  * }
  *
  */
+
 function initSession(shiny, options, shinyServer) {
   if (subapp.isSubApp()) {
     shiny.createSocket = function () {
@@ -1231,31 +1306,32 @@ function initSession(shiny, options, shinyServer) {
   } else {
     // Not a subapp
     ProtocolChooser.init(shinyServer, options.disableProtocols);
-
     var factory = sockjs.createFactory(ProtocolChooser, options);
+
     if (options.workerId) {
       factory = workerId.decorate(factory, options);
     }
+
     if (options.token) {
       factory = token.decorate(factory, options);
     }
+
     if (options.reconnect) {
       factory = reconnect.decorate(factory, options);
     } else {
       factory = disconnect.decorate(factory, options);
     }
+
     if (options.extendSession) {
       factory = extendSession.decorate(factory, options);
     }
-    factory = multiplex.decorate(factory, options);
 
-    // Register the connection with Shiny.createSocket, etc.
+    factory = multiplex.decorate(factory, options); // Register the connection with Shiny.createSocket, etc.
+
     shiny.createSocket = function () {
-      var url = location.protocol + "//" + location.host + location.pathname.replace(/\/[^\/]*$/, "");
+      var url = location.protocol + "//" + location.host + location.pathname.replace(/\/[^/]*$/, "");
       url += "/__sockjs__/";
-
       reconnectUI.hide();
-
       var ctx = new ConnectionContext();
 
       var doReconnectHandler = function doReconnectHandler() {
@@ -1263,6 +1339,7 @@ function initSession(shiny, options, shinyServer) {
       };
 
       reconnectUI.on("do-reconnect", doReconnectHandler);
+
       if (reconnectUI.listenerCount("do-reconnect") > 1) {
         log("do-reconnect handlers are leaking!");
       }
@@ -1281,24 +1358,20 @@ function initSession(shiny, options, shinyServer) {
         reconnectUI.removeListener("do-reconnect", doReconnectHandler);
         reconnectUI.showDisconnected();
       };
+
       ctx.on("reconnect-failure", onDisconnected);
       ctx.on("disconnect", onDisconnected);
-
       var pc = new PromisedConnection();
-
       factory(url, ctx, function (err, conn) {
         pc.resolve(err, conn);
       });
-
       assert(ctx.multiplexClient);
-      shinyServer.multiplexer = ctx.multiplexClient;
-
-      // Signal to Shiny 0.14 and above that a Shiny-level reconnection (i.e.
+      shinyServer.multiplexer = ctx.multiplexClient; // Signal to Shiny 0.14 and above that a Shiny-level reconnection (i.e.
       // automatically starting a new session) is permitted.
+
       pc.allowReconnect = true;
       ctx.on("disconnect", function (e) {
         // e here is the websocket/SockJS close event.
-
         // Don't allow a Shiny-level reconnection (new session) if we close
         // cleanly; this is an indication that the server wanted us to close
         // and stay closed (e.g. session idle timeout).
@@ -1314,7 +1387,6 @@ function initSession(shiny, options, shinyServer) {
           pc.allowReconnect = false;
         }
       });
-
       return pc;
     };
   }
@@ -1340,16 +1412,18 @@ global.preShinyInit = function (options) {
     global.Shiny.oncustommessage = function (message) {
       if (message.license) ui.onLicense(global.Shiny, message.license);
       if (message.credentials) ui.onLoggedIn(message.credentials);
-
       if (typeof message === "string" && console.log) console.log(message); // Legacy format
+
       if (message.alert && console.log) console.log(message.alert);
       if (message.console && console.log) console.log(message.console);
     };
     /*eslint-enable no-console*/
+
   }
 };
 
 global.fixupInternalLinks = fixupInternalLinks;
+
 function fixupInternalLinks() {
   global.jQuery("body").on("click", "a", function (ev) {
     // We don't scrub links from subapps because a.) We need to make sure that
@@ -1357,20 +1431,21 @@ function fixupInternalLinks() {
     // doesn't exist on another worker, and b.) because we don't care about the
     // side-effect of creating a big mess in the URL bar, since it's just an
     // iframe and won't be visible anyway.
-    assert(!subapp.isSubApp());
-
-    // setting /any/ value to ev.target.href (even assigning it to itself) would
+    assert(!subapp.isSubApp()); // setting /any/ value to ev.target.href (even assigning it to itself) would
     // have the side-effect of creating a real value in that property, even if
     // one shouldn't exist
+
     if (ev.currentTarget.href === null || !ev.currentTarget.href) {
       return;
     }
 
     var href = fixupUrl(ev.currentTarget.href, global.location);
+
     if (href === ev.currentTarget.href) {
       // Must not have been a relative URL, or base href isn't in effect.
       return;
     }
+
     ev.currentTarget.href = href;
   });
 }
@@ -1385,13 +1460,14 @@ global.Shiny.createSocket = function () {
 "use strict";
 
 var log = require("./log");
-var debug = require("./debug");
 
-// MultiplexClient sits on top of a SockJS connection and lets the caller
+var debug = require("./debug"); // MultiplexClient sits on top of a SockJS connection and lets the caller
 // open logical SockJS connections (channels). The SockJS connection is
 // closed when all of the channels close. This means you can't start with
 // zero channels, open a channel, close that channel, and then open
 // another channel.
+
+
 module.exports = MultiplexClient;
 
 function MultiplexClient(conn) {
@@ -1399,22 +1475,23 @@ function MultiplexClient(conn) {
 
   // The underlying SockJS connection. At this point it is not likely to
   // be opened yet.
-  this._conn = conn;
-  // A table of all active channels.
+  this._conn = conn; // A table of all active channels.
   // Key: id, value: MultiplexClientChannel
+
   this._channels = {};
-  this._channelCount = 0;
-  // ID to use for the next channel that is opened
-  this._nextId = 0;
-  // Channels that need to be opened when the SockJS connection's open
+  this._channelCount = 0; // ID to use for the next channel that is opened
+
+  this._nextId = 0; // Channels that need to be opened when the SockJS connection's open
   // event is received
-  this._pendingChannels = [];
-  // A list of functions that fire when our connection goes away.
+
+  this._pendingChannels = []; // A list of functions that fire when our connection goes away.
+
   this.onclose = [];
 
   this._conn.onopen = function () {
     log("Connection opened. " + global.location.href);
-    var channel = void 0;
+    var channel;
+
     while (channel = _this._pendingChannels.shift()) {
       // Be sure to check readyState so we don't open connections for
       // channels that were closed before they finished opening
@@ -1425,45 +1502,57 @@ function MultiplexClient(conn) {
       }
     }
   };
+
   this._conn.onclose = function (e) {
     log("Connection closed. Info: " + JSON.stringify(e));
-    debug("SockJS connection closed");
-    // If the SockJS connection is terminated from the other end (or due
+    debug("SockJS connection closed"); // If the SockJS connection is terminated from the other end (or due
     // to loss of connectivity or whatever) then we can notify all the
     // active channels that they are closed too.
+
     for (var key in _this._channels) {
-      if (_this._channels.hasOwnProperty(key)) {
+      if (Object.prototype.hasOwnProperty.call(_this._channels, key)) {
         _this._channels[key]._destroy(e);
       }
     }
+
     for (var i = 0; i < _this.onclose.length; i++) {
       _this.onclose[i]();
     }
   };
+
   this._conn.onmessage = function (e) {
     var msg = parseMultiplexData(e.data);
+
     if (!msg) {
       log("Invalid multiplex packet received from server");
+
       _this._conn.close();
+
       return;
     }
+
     var id = msg.id;
     var method = msg.method;
     var payload = msg.payload;
     var channel = _this._channels[id];
+
     if (!channel) {
       log("Multiplex channel " + id + " not found");
       return;
     }
+
     if (method === "c") {
       // If we're closing, we want to close everything, not just a subapp.
       // So don't send to a single channel.
       _this._conn.close(payload.code, payload.reason);
     } else if (method === "m") {
-      channel.onmessage({ data: payload });
+      channel.onmessage({
+        data: payload
+      });
     }
   };
 }
+
 MultiplexClient.prototype.open = function (url) {
   var channel = new MultiplexClientChannel(this, this._nextId++ + "", this._conn, url);
   this._channels[channel.id] = channel;
@@ -1472,26 +1561,33 @@ MultiplexClient.prototype.open = function (url) {
   switch (this._conn.readyState) {
     case 0:
       this._pendingChannels.push(channel);
+
       break;
+
     case 1:
       setTimeout(function () {
         channel._open();
       }, 0);
       break;
+
     default:
       setTimeout(function () {
         channel.close();
       }, 0);
       break;
   }
+
   return channel;
 };
+
 MultiplexClient.prototype.removeChannel = function (id) {
   delete this._channels[id];
   this._channelCount--;
   debug("Removed channel " + id + ", " + this._channelCount + " left");
+
   if (this._channelCount === 0 && this._conn.readyState < 2) {
     debug("Closing SockJS connection since no channels are left");
+
     this._conn.close();
   }
 };
@@ -1502,33 +1598,44 @@ function MultiplexClientChannel(owner, id, conn, url) {
   this.conn = conn;
   this.url = url;
   this.readyState = 0;
+
   this.onopen = function () {};
+
   this.onclose = function () {};
+
   this.onmessage = function () {};
 }
+
 MultiplexClientChannel.prototype._open = function (parentURL) {
   debug("Open channel " + this.id);
-  this.readyState = 1;
-
-  //let relURL = getRelativePath(parentURL, this.url)
+  this.readyState = 1; //let relURL = getRelativePath(parentURL, this.url)
 
   this.conn.send(formatOpenEvent(this.id, this.url));
   if (this.onopen) this.onopen();
 };
+
 MultiplexClientChannel.prototype.send = function (data) {
   if (this.readyState === 0) throw new Error("Invalid state: can't send when readyState is 0");
   if (this.readyState === 1) this.conn.send(formatMessage(this.id, data));
 };
+
 MultiplexClientChannel.prototype.close = function (code, reason) {
   if (this.readyState >= 2) return;
   debug("Close channel " + this.id);
+
   if (this.conn.readyState === 1) {
     // Is the underlying connection open? Send a close message.
     this.conn.send(formatCloseEvent(this.id, code, reason));
   }
-  this._destroy({ code: code, reason: reason, wasClean: true });
-};
-// Internal version of close that doesn't notify the server
+
+  this._destroy({
+    code: code,
+    reason: reason,
+    wasClean: true
+  });
+}; // Internal version of close that doesn't notify the server
+
+
 MultiplexClientChannel.prototype._destroy = function (e) {
   var _this2 = this;
 
@@ -1538,6 +1645,7 @@ MultiplexClientChannel.prototype._destroy = function (e) {
     debug("Channel " + this.id + " is closed");
     setTimeout(function () {
       _this2._owner.removeChannel(_this2.id);
+
       if (_this2.onclose) _this2.onclose(e);
     }, 0);
   }
@@ -1546,12 +1654,18 @@ MultiplexClientChannel.prototype._destroy = function (e) {
 function formatMessage(id, message) {
   return id + '|m|' + message;
 }
+
 function formatOpenEvent(id, url) {
   return id + '|o|' + url;
 }
+
 function formatCloseEvent(id, code, reason) {
-  return id + '|c|' + JSON.stringify({ code: code, reason: reason });
+  return id + '|c|' + JSON.stringify({
+    code: code,
+    reason: reason
+  });
 }
+
 function parseMultiplexData(msg) {
   try {
     var m = /^(\d+)\|(m|o|c)\|([\s\S]*)$/m.exec(msg);
@@ -1565,16 +1679,20 @@ function parseMultiplexData(msg) {
     switch (msg.method) {
       case 'm':
         break;
+
       case 'o':
         if (msg.payload.length === 0) return null;
         break;
+
       case 'c':
         try {
           msg.payload = JSON.parse(msg.payload);
         } catch (e) {
           return null;
         }
+
         break;
+
       default:
         return null;
     }
@@ -1591,9 +1709,11 @@ function parseMultiplexData(msg) {
 "use strict";
 
 var util = require("./util");
+
 var WebSocket = require("./websocket");
 
 module.exports = PromisedConnection;
+
 function PromisedConnection() {
   this._conn = null;
   this._closed = false;
@@ -1603,24 +1723,27 @@ PromisedConnection.prototype.resolve = function (err, conn) {
   var _this = this;
 
   if (err) {
-    this._closed = true;
-    // TODO: raise onerror
+    this._closed = true; // TODO: raise onerror
     // TODO: raise onclose
   }
 
   this._conn = conn;
+
   if (this._closed) {
     this._conn.close.apply(this._conn, this._closed);
   } else {
     this._conn.onclose = function (evt) {
       if (_this.onclose) _this.onclose(evt);
     };
+
     this._conn.onopen = function (evt) {
       if (_this.onopen) _this.onopen(evt);
     };
+
     this._conn.onmessage = function (evt) {
       if (_this.onmessage) _this.onmessage(evt);
     };
+
     this._conn.onerror = function (evt) {
       if (_this.onerror) _this.onerror(evt);
     };
@@ -1633,12 +1756,13 @@ PromisedConnection.prototype.close = function (code, reason) {
   // Already closed; no-op.
   if (this._closed) {
     return;
-  }
-
-  // Set _closed to arguments instead of true; arguments is
+  } // Set _closed to arguments instead of true; arguments is
   // truthy and it also lets us send the arguments to the real
   // connection if necessary
+
+
   this._closed = arguments;
+
   if (this._conn) {
     // If we already have the connection, close it. If not, we
     // rely on the promise callback to check the _closed flag.
@@ -1656,6 +1780,7 @@ PromisedConnection.prototype.close = function (code, reason) {
           reason: reason || "",
           wasClean: true
         });
+
         _this2.onclose(evt);
       }
     }, 0);
@@ -1674,10 +1799,10 @@ PromisedConnection.prototype.send = function (data) {
   } else {
     throw new Error("Unexpected PromisedConnection readyState " + this.readyState);
   }
-};
-
-// Convenience method for returning a property on the connection, or
+}; // Convenience method for returning a property on the connection, or
 // if the promise is pending or failed, return some other value.
+
+
 PromisedConnection.prototype._getConnProperty = function (prop, ifPending, ifFailed) {
   if (!this._conn && this._closed) {
     // Failure
@@ -1689,22 +1814,19 @@ PromisedConnection.prototype._getConnProperty = function (prop, ifPending, ifFai
     // this._connPromise() === undefined
     return ifPending;
   }
-};
+}; // Proxy some properties
 
-// Proxy some properties
 
 Object.defineProperty(PromisedConnection.prototype, "readyState", {
   get: function readyState() {
     if (this._closed) return WebSocket.CLOSED;else return this._getConnProperty("readyState", WebSocket.CONNECTING, WebSocket.CLOSED);
   }
 });
-
 Object.defineProperty(PromisedConnection.prototype, "protocol", {
   get: function protocol() {
     return this._getConnProperty("readyState", "", "");
   }
 });
-
 Object.defineProperty(PromisedConnection.prototype, "extensions", {
   get: function protocol() {
     return this._getConnProperty("extensions", "", "");
@@ -1716,7 +1838,6 @@ Object.defineProperty(PromisedConnection.prototype, "extensions", {
 "use strict";
 
 var whitelist = [];
-
 Object.defineProperty(exports, "whitelist", {
   get: function get() {
     return whitelist;
@@ -1724,7 +1845,6 @@ Object.defineProperty(exports, "whitelist", {
 });
 
 exports.init = function (shinyServer, disableProtocols) {
-
   var $ = global.jQuery;
 
   function supports_html5_storage() {
@@ -1736,26 +1856,26 @@ exports.init = function (shinyServer, disableProtocols) {
     }
   }
 
-  var availableOptions = ["websocket", "xdr-streaming", "xhr-streaming", "iframe-eventsource", "iframe-htmlfile", "xdr-polling", "xhr-polling", "iframe-xhr-polling", "jsonp-polling"];
-  // `slice` with no args is a shallow clone. since `availableOptions` is all strings, it's de facto deep cloned.
-  var defaultPermitted = availableOptions.slice();
-  // MS Edge works very poorly with xhr-streaming (repro'd with shinyapps.io and RSC on Edge 17.17134)
+  var availableOptions = ["websocket", "xdr-streaming", "xhr-streaming", "iframe-eventsource", "iframe-htmlfile", "xdr-polling", "xhr-polling", "iframe-xhr-polling", "jsonp-polling"]; // `slice` with no args is a shallow clone. since `availableOptions` is all strings, it's de facto deep cloned.
+
+  var defaultPermitted = availableOptions.slice(); // MS Edge works very poorly with xhr-streaming (repro'd with shinyapps.io and RSC on Edge 17.17134)
+
   if (/\bEdge\//.test(window.navigator.userAgent)) {
     defaultPermitted.splice($.inArray("xhr-streaming", defaultPermitted), 1);
   }
 
-  var store = null;
+  var store = null; // If a whitelist exists in localstorage, load that instead of the default whitelist
 
-  // If a whitelist exists in localstorage, load that instead of the default whitelist
   if (supports_html5_storage()) {
     store = window.localStorage;
     var whitelistStr = store["shiny.whitelist"];
+
     if (!whitelistStr || whitelistStr === "") {
       // use our user-agent defaults if not specified
       whitelist = defaultPermitted;
     } else {
-      whitelist = JSON.parse(whitelistStr);
-      // Regardless of what the user set, disable any protocols that aren't offered by the server.
+      whitelist = JSON.parse(whitelistStr); // Regardless of what the user set, disable any protocols that aren't offered by the server.
+
       $.each(whitelist, function (i, p) {
         if ($.inArray(p, availableOptions) === -1) {
           // Then it's not a valid option
@@ -1769,28 +1889,23 @@ exports.init = function (shinyServer, disableProtocols) {
 
   var networkSelectorVisible = false;
   var networkSelector = undefined;
-  var networkOptions = undefined;
-
-  // Build the SockJS network protocol selector.
+  var networkOptions = undefined; // Build the SockJS network protocol selector.
   //
   // Has the side-effect of defining values for both "networkSelector"
   // and "networkOptions".
+
   function buildNetworkSelector() {
     networkSelector = $('<div style="top: 50%; left: 50%; position: absolute; z-index: 99999;">' + '<div style="position: relative; width: 300px; margin-left: -150px; padding: .5em 1em 0 1em; height: 400px; margin-top: -190px; background-color: #FAFAFA; border: 1px solid #CCC; font.size: 1.2em;">' + '<h3>Select Network Methods</h3>' + '<div id="ss-net-opts"></div>' + '<div id="ss-net-prot-warning" style="color: #44B">' + (supports_html5_storage() ? '' : "These network settings can only be configured in browsers that support HTML5 Storage. Please update your browser or unblock storage for this domain.") + '</div>' + '<div style="float: right;">' + '<input type="button" value="Reset" onclick="ShinyServer.enableAll()"></input>' + '<input type="button" value="OK" onclick="ShinyServer.toggleNetworkSelector();" style="margin-left: 1em;" id="netOptOK"></input>' + '</div>' + '</div></div>');
-
     networkOptions = $('#ss-net-opts', networkSelector);
     $.each(availableOptions, function (index, val) {
       var label = $(document.createElement("label")).css({
         color: $.inArray(val, disableProtocols) >= 0 ? "silver" : "",
         display: "block"
       });
-
       var checkbox = $(document.createElement("input")).attr("type", "checkbox").attr("id", "ss-net-opt-" + val).attr("name", "shiny-server-proto-checkbox").attr("value", index + "").attr("checked", $.inArray(val, whitelist) >= 0 ? "checked" : null).attr("disabled", supports_html5_storage() ? null : "disabled");
-
       label.append(checkbox);
       label.append(val + " ");
       networkOptions.append(label);
-
       checkbox.on("change", function (evt) {
         shinyServer.setOption(val, $(evt.target).prop('checked'));
       });
@@ -1802,8 +1917,8 @@ exports.init = function (shinyServer, disableProtocols) {
       toggleNetworkSelector();
     }
   });
-
   shinyServer.toggleNetworkSelector = toggleNetworkSelector;
+
   function toggleNetworkSelector() {
     if (networkSelectorVisible) {
       networkSelectorVisible = false;
@@ -1821,25 +1936,30 @@ exports.init = function (shinyServer, disableProtocols) {
   }
 
   shinyServer.enableAll = enableAll;
+
   function enableAll() {
     $('input', networkOptions).each(function (index, val) {
       $(val).prop('checked', true);
-    });
-    // Enable each protocol internally
+    }); // Enable each protocol internally
+
     $.each(availableOptions, function (index, val) {
       setOption(val, true);
     });
   }
-
   /**
    * Doesn't update the DOM, just updates our internal model.
    */
+
+
   shinyServer.setOption = setOption;
+
   function setOption(option, enabled) {
     $("#ss-net-prot-warning").html("Updated settings will be applied when you refresh your browser or load a new Shiny application.");
+
     if (enabled && $.inArray(option, whitelist) === -1) {
       whitelist.push(option);
     }
+
     if (!enabled && $.inArray(option, whitelist >= 0)) {
       // Don't remove if it's the last one, and recheck
       if (whitelist.length === 1) {
@@ -1849,6 +1969,7 @@ exports.init = function (shinyServer, disableProtocols) {
         whitelist.splice($.inArray(option, whitelist), 1);
       }
     }
+
     store["shiny.whitelist"] = JSON.stringify(whitelist);
   }
 };
@@ -1859,28 +1980,26 @@ exports.init = function (shinyServer, disableProtocols) {
 "use strict";
 
 var EventEmitter = require("events").EventEmitter;
+
 var inherits = require("inherits");
 
 var $ = global.jQuery;
-
 var dialogHtml = '<div id="ss-connect-dialog" style="display: none;"></div><div id="ss-overlay" class="ss-gray-out" style="display: none;"></div>';
 var countdownContentsHtml = '<label>Reconnect failed. Retrying in <span id="ss-dialog-countdown"></span> seconds...</label> <a id="ss-reconnect-link" href="#" class="ss-dialog-link">Try now</a>';
 var reconnectContentsHtml = '<label>Attempting to reconnect...</label><label>&nbsp;</label>';
 var disconnectContentsHtml = '<label>Disconnected from the server.</label> <a id="ss-reload-link" href="#" class="ss-dialog-link">Reload</a>';
-
 module.exports = ReconnectUI;
 
 function ReconnectUI() {
   var _this = this;
 
   EventEmitter.call(this);
-
   $(function () {
     var dialog = $(dialogHtml);
     dialog.appendTo('body');
-
     $(document).on("click", '#ss-reconnect-link', function (e) {
       e.preventDefault();
+
       _this.emit("do-reconnect");
     });
     $(document).on("click", "#ss-reload-link", function (e) {
@@ -1890,15 +2009,12 @@ function ReconnectUI() {
   });
 }
 
-inherits(ReconnectUI, EventEmitter);
-
-// Relevant events:
+inherits(ReconnectUI, EventEmitter); // Relevant events:
 //
 // Reconnect SCHEDULED
 // Reconnect ATTEMPTING
 // Reconnect SUCEEDED
 // Reconnect FAILURE (final failure)
-
 // States:
 // Everything up to first disconnect: show nothing
 // On reconnect attempt: Show "Attempting to reconnect [Cancel]"
@@ -1910,16 +2026,20 @@ ReconnectUI.prototype.showCountdown = function (delay) {
   if (delay < 200) return;
   var attemptTime = Date.now() + delay;
   $('#ss-connect-dialog').html(countdownContentsHtml);
-  $('#ss-connect-dialog').show();
-  // $('#ss-overlay').show();
+  $('#ss-connect-dialog').show(); // $('#ss-overlay').show();
 
-  function updateCountdown(seconds /* optional */) {
+  function updateCountdown(seconds
+  /* optional */
+  ) {
     if (typeof seconds === "undefined") {
       seconds = Math.max(0, Math.floor((attemptTime - Date.now()) / 1000)) + "";
     }
+
     $("#ss-dialog-countdown").html(seconds);
   }
+
   updateCountdown(Math.round(delay / 1000));
+
   if (delay > 15000) {
     var updateInterval = setInterval(function () {
       if (Date.now() > attemptTime) {
@@ -1934,8 +2054,7 @@ ReconnectUI.prototype.showCountdown = function (delay) {
 ReconnectUI.prototype.showAttempting = function () {
   $('body').addClass('ss-reconnecting');
   $("#ss-connect-dialog").html(reconnectContentsHtml);
-  $('#ss-connect-dialog').show();
-  // $('#ss-overlay').show();
+  $('#ss-connect-dialog').show(); // $('#ss-overlay').show();
 };
 
 ReconnectUI.prototype.hide = function () {
@@ -1957,61 +2076,57 @@ ReconnectUI.prototype.showDisconnected = function () {
 "use strict";
 
 var log = require("./log");
-var pathParams = require("../common/path-params");
-var currConn = null;
 
+var pathParams = require("../common/path-params");
+
+var currConn = null;
 global.__shinyserverdebug__ = {
   interrupt: function interrupt() {
     log("OK, we'll silently drop messages starting now.");
+
     currConn.send = function (data) {
       log("Dropping message " + data);
     };
+
     currConn.onmessage = function (e) {
       log("Ignoring message " + e.data);
     };
   },
   disconnect: function disconnect() {
-    log("OK, we'll simulate a disconnection.");
-    // 46xx range for close code tells the reconnect
+    log("OK, we'll simulate a disconnection."); // 46xx range for close code tells the reconnect
     // decorator to try reconnecting, which we normally
     // only do on !wasClean disconnects.
+
     currConn.close(4600);
   }
-};
-
-// options.disableProtocols can be an array of protocols to remove from the
+}; // options.disableProtocols can be an array of protocols to remove from the
 // whitelist
+
 exports.createFactory = function (protocolChooser, options) {
   return function (url, context, callback) {
     if (!callback) throw new Error("callback is required");
-
     url = pathParams.reorderPathParams(url, ["n", "o", "t", "w", "s"]);
-
     var whitelist = [];
     protocolChooser.whitelist.forEach(function (prot) {
       if (!options.disableProtocols || options.disableProtocols.indexOf(prot) < 0) {
         whitelist.push(prot);
       }
-    });
-
-    // If we are left with an empty whitelist, add a dummy protocol for the
+    }); // If we are left with an empty whitelist, add a dummy protocol for the
     // edge case where we end up with no valid protocols. SockJS interprets an
     // empty protocols_whitelist as permitting _all_ protocols. Useful when
     // trying to test behavior when all protocols are disabled.
+
     if (whitelist.length == 0) {
       whitelist.push("dummy");
     }
 
     var transportDebugging = options.transportDebugging == true;
-
     var sockjsOptions = {
       protocols_whitelist: whitelist,
       debug: transportDebugging
     };
-
     var conn = new global.SockJS(url, null, sockjsOptions);
     currConn = conn;
-
     callback(null, conn);
   };
 };
@@ -2022,19 +2137,21 @@ exports.createFactory = function (protocolChooser, options) {
 "use strict";
 
 exports.isSubApp = isSubApp;
+
 function isSubApp() {
   var subApp = global.location.search.match(/\?.*__subapp__=(\d)/);
   return subApp && subApp[1]; //is truthy
 }
 
 exports.createSocket = createSocket;
+
 function createSocket() {
   if (!window.parent || !window.parent.ShinyServer || !window.parent.ShinyServer.multiplexer) {
     throw new Error("Multiplexer not found in parent");
   }
 
-  var relURL = window.frameElement.getAttribute("src");
-  // Add /__sockjs__/ to the end of the path
+  var relURL = window.frameElement.getAttribute("src"); // Add /__sockjs__/ to the end of the path
+
   relURL = relURL.replace(/\/?(\?.*|$)/, "/__sockjs__/");
   return window.parent.ShinyServer.multiplexer.open(relURL);
 }
@@ -2045,16 +2162,17 @@ function createSocket() {
 "use strict";
 
 var $ = global.jQuery;
-
 exports.onLoggedIn = onLoggedIn;
+
 function onLoggedIn(credentials) {
   if (!credentials) return;
-
   var user = credentials.user;
   var str = '<div class="shiny-server-account">' + '  Logged in as <span class="shiny-server-username"></span>';
+
   if (credentials.strategy !== 'proxy-auth') {
     str += '  <a href="__logout__">Logout</a>';
   }
+
   str += '</div>';
   var div = $(str);
   div.find('.shiny-server-username').text(user);
@@ -2063,16 +2181,15 @@ function onLoggedIn(credentials) {
 
 function formatDate(date) {
   if (!date) return '?/?/????';
-
   var months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   return months[date.getMonth()] + ' ' + date.getDate() + ', ' + date.getFullYear();
 }
 
 exports.onLicense = onLicense;
+
 function onLicense(Shiny, license) {
   if (!license) return;
   if (license.status !== 'expired' && license.status !== 'grace') return;
-
   var noun = license.evaluation ? 'evaluation' : 'license';
   var message = 'Your Shiny Server ' + noun + ' expired';
   if (license.expiration) message += ' on ' + formatDate(new Date(license.expiration));
@@ -2082,6 +2199,7 @@ function onLicense(Shiny, license) {
     setTimeout(function () {
       window.alert(message + '\n\n' + 'Please purchase and activate a license.');
     }, 0);
+
     if (Shiny && Shiny.shinyapp && Shiny.shinyapp.$socket) {
       Shiny.shinyapp.$socket.close();
     }
@@ -2091,7 +2209,9 @@ function onLicense(Shiny, license) {
     $('body').append(div);
     setTimeout(function () {
       div.animate({
-        top: -(div.height() + 16 /* total vertical padding */)
+        top: -(div.height() + 16
+        /* total vertical padding */
+        )
       }, 'slow', function () {
         div.remove();
       });
@@ -2105,6 +2225,7 @@ function onLicense(Shiny, license) {
 "use strict";
 
 var log = require("./log");
+
 var pinkySwear = require("pinkyswear");
 
 exports.createNiceBackoffDelayFunc = function () {
@@ -2115,9 +2236,7 @@ exports.createNiceBackoffDelayFunc = function () {
     pos = Math.min(++pos, niceBackoff.length - 1);
     return niceBackoff[pos] * 1000;
   };
-};
-
-// Call a function that returns a promise one or more times, until
+}; // Call a function that returns a promise one or more times, until
 // it either returns successfully, or time expires. Use a configurable
 // delay in between attempts.
 //
@@ -2135,22 +2254,22 @@ exports.createNiceBackoffDelayFunc = function () {
 // "retry-now"              // Stop waiting for next attempt; do it immediately.
 //                          // If emitted during an attempt, event will be
 //                          // ignored.
+
+
 exports.retryPromise_p = function (create_p, delayFunc, expiration, progressCallbacks) {
-
-  if (!progressCallbacks) progressCallbacks = { emit: function emit() {} };
-
+  if (!progressCallbacks) progressCallbacks = {
+    emit: function emit() {}
+  };
   var promise = exports.promise();
+  var delay = delayFunc(); // Don't let the delay exceed the remaining time til expiration.
 
-  var delay = delayFunc();
-  // Don't let the delay exceed the remaining time til expiration.
-  delay = Math.min(delay, expiration - Date.now());
-  // But in no case should the delay be less than zero, either.
+  delay = Math.min(delay, expiration - Date.now()); // But in no case should the delay be less than zero, either.
+
   delay = Math.max(0, delay);
 
   function attempt() {
     progressCallbacks.removeListener("retry-now", retryNow);
     progressCallbacks.emit("attempt");
-
     create_p().then(function (value) {
       progressCallbacks.emit("success");
       promise(true, [value]);
@@ -2177,10 +2296,9 @@ exports.retryPromise_p = function (create_p, delayFunc, expiration, progressCall
     clearTimeout(timeoutHandle);
     attempt();
   }
+
   progressCallbacks.on("retry-now", retryNow);
-
   progressCallbacks.emit("schedule", delay);
-
   return promise;
 };
 
@@ -2192,16 +2310,20 @@ exports.createEvent = function (type, props) {
       // "new Event()" not supported in MSIE, not even 11
       var evt = global.document.createEvent("Event");
       evt.initEvent(type, true, false);
+
       for (var key in props) {
         evt[key] = props[key];
       }
+
       return evt;
     }
   } else if (props) {
     props.type = type;
     return props;
   } else {
-    return { type: type };
+    return {
+      type: type
+    };
   }
 };
 
@@ -2212,13 +2334,13 @@ function addDone(prom) {
       log(err.stack);
     });
   };
+
   return prom;
 }
+
 exports.promise = function () {
   return pinkySwear(addDone);
-};
-
-// PauseConnection is similar to pauseable streams
+}; // PauseConnection is similar to pauseable streams
 // in Node.js; used to delay events in case the
 // process of registering event handlers has some
 // asynchronicity to it. In our case, returning a
@@ -2238,19 +2360,25 @@ exports.promise = function () {
 // underlying state is more relevant when it comes to
 // calling send()/close() on this connection (which
 // pass straight through to the underlying connection).
+
+
 exports.PauseConnection = PauseConnection;
+
 function PauseConnection(conn) {
   this._conn = conn;
   this._paused = true;
   this._events = [];
   this._timeout = null;
   this.readyState = conn.readyState;
-
   var pauseConnection = this;
   ["onopen", "onmessage", "onerror", "onclose"].forEach(function (evt) {
     conn[evt] = function () {
       if (pauseConnection._paused) {
-        pauseConnection._events.push({ event: evt, args: arguments, readyState: conn.readyState });
+        pauseConnection._events.push({
+          event: evt,
+          args: arguments,
+          readyState: conn.readyState
+        });
       } else {
         this.readyState = conn.readyState;
         pauseConnection[evt].apply(this, arguments);
@@ -2265,12 +2393,16 @@ PauseConnection.prototype.resume = function () {
   this._timeout = setTimeout(function () {
     while (_this._events.length) {
       var e = _this._events.shift();
+
       _this.readyState = e.readyState;
+
       _this[e.event].apply(_this, e.args);
     }
+
     _this._paused = false;
   }, 0);
 };
+
 PauseConnection.prototype.pause = function () {
   clearTimeout(this._timeout);
   this._paused = true;
@@ -2279,6 +2411,7 @@ PauseConnection.prototype.pause = function () {
 PauseConnection.prototype.close = function () {
   this._conn.close.apply(this._conn, arguments);
 };
+
 PauseConnection.prototype.send = function () {
   this._conn.send.apply(this._conn, arguments);
 };
@@ -2300,10 +2433,8 @@ Object.defineProperty(PauseConnection.prototype, "extensions", {
 });
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./log":15,"pinkyswear":32}],25:[function(require,module,exports){
-"use strict";
-
-// Constants from WebSocket and SockJS APIs.
+},{"./log":15,"pinkyswear":33}],25:[function(require,module,exports){
+"use strict"; // Constants from WebSocket and SockJS APIs.
 
 exports.CONNECTING = 0;
 exports.OPEN = 1;
@@ -2311,6 +2442,55 @@ exports.CLOSING = 2;
 exports.CLOSED = 3;
 
 },{}],26:[function(require,module,exports){
+(function (global){
+'use strict';
+
+var objectAssign = require('object-assign');
+
+// compare and isBuffer taken from https://github.com/feross/buffer/blob/680e9e5e488f22aac27599a57dc844a6315928dd/index.js
+// original notice:
+
+/*!
+ * The buffer module from node.js, for the browser.
+ *
+ * @author   Feross Aboukhadijeh <feross@feross.org> <http://feross.org>
+ * @license  MIT
+ */
+function compare(a, b) {
+  if (a === b) {
+    return 0;
+  }
+
+  var x = a.length;
+  var y = b.length;
+
+  for (var i = 0, len = Math.min(x, y); i < len; ++i) {
+    if (a[i] !== b[i]) {
+      x = a[i];
+      y = b[i];
+      break;
+    }
+  }
+
+  if (x < y) {
+    return -1;
+  }
+  if (y < x) {
+    return 1;
+  }
+  return 0;
+}
+function isBuffer(b) {
+  if (global.Buffer && typeof global.Buffer.isBuffer === 'function') {
+    return global.Buffer.isBuffer(b);
+  }
+  return !!(b != null && b._isBuffer);
+}
+
+// based on node assert, original notice:
+// NB: The URL to the CommonJS spec is kept just for tradition.
+//     node-assert has evolved a lot since then, both in API and behavior.
+
 // http://wiki.commonjs.org/wiki/Unit_Testing/1.0
 //
 // THIS IS NOT TESTED NOR LIKELY TO WORK OUTSIDE V8!
@@ -2335,14 +2515,36 @@ exports.CLOSED = 3;
 // ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// when used in node, this will actually load the util module we depend on
-// versus loading the builtin util module as happens otherwise
-// this is a bug in node module loading as far as I am concerned
 var util = require('util/');
-
-var pSlice = Array.prototype.slice;
 var hasOwn = Object.prototype.hasOwnProperty;
-
+var pSlice = Array.prototype.slice;
+var functionsHaveNames = (function () {
+  return function foo() {}.name === 'foo';
+}());
+function pToString (obj) {
+  return Object.prototype.toString.call(obj);
+}
+function isView(arrbuf) {
+  if (isBuffer(arrbuf)) {
+    return false;
+  }
+  if (typeof global.ArrayBuffer !== 'function') {
+    return false;
+  }
+  if (typeof ArrayBuffer.isView === 'function') {
+    return ArrayBuffer.isView(arrbuf);
+  }
+  if (!arrbuf) {
+    return false;
+  }
+  if (arrbuf instanceof DataView) {
+    return true;
+  }
+  if (arrbuf.buffer && arrbuf.buffer instanceof ArrayBuffer) {
+    return true;
+  }
+  return false;
+}
 // 1. The assert module provides functions that throw
 // AssertionError's when particular conditions are not met. The
 // assert module must conform to the following interface.
@@ -2354,6 +2556,19 @@ var assert = module.exports = ok;
 //                             actual: actual,
 //                             expected: expected })
 
+var regex = /\s*function\s+([^\(\s]*)\s*/;
+// based on https://github.com/ljharb/function.prototype.name/blob/adeeeec8bfcc6068b187d7d9fb3d5bb1d3a30899/implementation.js
+function getName(func) {
+  if (!util.isFunction(func)) {
+    return;
+  }
+  if (functionsHaveNames) {
+    return func.name;
+  }
+  var str = func.toString();
+  var match = str.match(regex);
+  return match && match[1];
+}
 assert.AssertionError = function AssertionError(options) {
   this.name = 'AssertionError';
   this.actual = options.actual;
@@ -2367,18 +2582,16 @@ assert.AssertionError = function AssertionError(options) {
     this.generatedMessage = true;
   }
   var stackStartFunction = options.stackStartFunction || fail;
-
   if (Error.captureStackTrace) {
     Error.captureStackTrace(this, stackStartFunction);
-  }
-  else {
+  } else {
     // non v8 browsers so we can have a stacktrace
     var err = new Error();
     if (err.stack) {
       var out = err.stack;
 
       // try to strip useless frames
-      var fn_name = stackStartFunction.name;
+      var fn_name = getName(stackStartFunction);
       var idx = out.indexOf('\n' + fn_name);
       if (idx >= 0) {
         // once we have located the function frame
@@ -2395,31 +2608,25 @@ assert.AssertionError = function AssertionError(options) {
 // assert.AssertionError instanceof Error
 util.inherits(assert.AssertionError, Error);
 
-function replacer(key, value) {
-  if (util.isUndefined(value)) {
-    return '' + value;
-  }
-  if (util.isNumber(value) && !isFinite(value)) {
-    return value.toString();
-  }
-  if (util.isFunction(value) || util.isRegExp(value)) {
-    return value.toString();
-  }
-  return value;
-}
-
 function truncate(s, n) {
-  if (util.isString(s)) {
+  if (typeof s === 'string') {
     return s.length < n ? s : s.slice(0, n);
   } else {
     return s;
   }
 }
-
+function inspect(something) {
+  if (functionsHaveNames || !util.isFunction(something)) {
+    return util.inspect(something);
+  }
+  var rawname = getName(something);
+  var name = rawname ? ': ' + rawname : '';
+  return '[Function' +  name + ']';
+}
 function getMessage(self) {
-  return truncate(JSON.stringify(self.actual, replacer), 128) + ' ' +
+  return truncate(inspect(self.actual), 128) + ' ' +
          self.operator + ' ' +
-         truncate(JSON.stringify(self.expected, replacer), 128);
+         truncate(inspect(self.expected), 128);
 }
 
 // At present only the three keys mentioned above are used and
@@ -2479,24 +2686,23 @@ assert.notEqual = function notEqual(actual, expected, message) {
 // assert.deepEqual(actual, expected, message_opt);
 
 assert.deepEqual = function deepEqual(actual, expected, message) {
-  if (!_deepEqual(actual, expected)) {
+  if (!_deepEqual(actual, expected, false)) {
     fail(actual, expected, message, 'deepEqual', assert.deepEqual);
   }
 };
 
-function _deepEqual(actual, expected) {
+assert.deepStrictEqual = function deepStrictEqual(actual, expected, message) {
+  if (!_deepEqual(actual, expected, true)) {
+    fail(actual, expected, message, 'deepStrictEqual', assert.deepStrictEqual);
+  }
+};
+
+function _deepEqual(actual, expected, strict, memos) {
   // 7.1. All identical values are equivalent, as determined by ===.
   if (actual === expected) {
     return true;
-
-  } else if (util.isBuffer(actual) && util.isBuffer(expected)) {
-    if (actual.length != expected.length) return false;
-
-    for (var i = 0; i < actual.length; i++) {
-      if (actual[i] !== expected[i]) return false;
-    }
-
-    return true;
+  } else if (isBuffer(actual) && isBuffer(expected)) {
+    return compare(actual, expected) === 0;
 
   // 7.2. If the expected value is a Date object, the actual value is
   // equivalent if it is also a Date object that refers to the same time.
@@ -2515,8 +2721,22 @@ function _deepEqual(actual, expected) {
 
   // 7.4. Other pairs that do not both pass typeof value == 'object',
   // equivalence is determined by ==.
-  } else if (!util.isObject(actual) && !util.isObject(expected)) {
-    return actual == expected;
+  } else if ((actual === null || typeof actual !== 'object') &&
+             (expected === null || typeof expected !== 'object')) {
+    return strict ? actual === expected : actual == expected;
+
+  // If both values are instances of typed arrays, wrap their underlying
+  // ArrayBuffers in a Buffer each to increase performance
+  // This optimization requires the arrays to have the same type as checked by
+  // Object.prototype.toString (aka pToString). Never perform binary
+  // comparisons for Float*Arrays, though, since e.g. +0 === -0 but their
+  // bit patterns are not identical.
+  } else if (isView(actual) && isView(expected) &&
+             pToString(actual) === pToString(expected) &&
+             !(actual instanceof Float32Array ||
+               actual instanceof Float64Array)) {
+    return compare(new Uint8Array(actual.buffer),
+                   new Uint8Array(expected.buffer)) === 0;
 
   // 7.5 For all other Object pairs, including Array objects, equivalence is
   // determined by having the same number of owned properties (as verified
@@ -2524,8 +2744,22 @@ function _deepEqual(actual, expected) {
   // (although not necessarily the same order), equivalent values for every
   // corresponding key, and an identical 'prototype' property. Note: this
   // accounts for both named and indexed properties on Arrays.
+  } else if (isBuffer(actual) !== isBuffer(expected)) {
+    return false;
   } else {
-    return objEquiv(actual, expected);
+    memos = memos || {actual: [], expected: []};
+
+    var actualIndex = memos.actual.indexOf(actual);
+    if (actualIndex !== -1) {
+      if (actualIndex === memos.expected.indexOf(expected)) {
+        return true;
+      }
+    }
+
+    memos.actual.push(actual);
+    memos.expected.push(expected);
+
+    return objEquiv(actual, expected, strict, memos);
   }
 }
 
@@ -2533,44 +2767,44 @@ function isArguments(object) {
   return Object.prototype.toString.call(object) == '[object Arguments]';
 }
 
-function objEquiv(a, b) {
-  if (util.isNullOrUndefined(a) || util.isNullOrUndefined(b))
+function objEquiv(a, b, strict, actualVisitedObjects) {
+  if (a === null || a === undefined || b === null || b === undefined)
     return false;
-  // an identical 'prototype' property.
-  if (a.prototype !== b.prototype) return false;
   // if one is a primitive, the other must be same
-  if (util.isPrimitive(a) || util.isPrimitive(b)) {
+  if (util.isPrimitive(a) || util.isPrimitive(b))
     return a === b;
-  }
-  var aIsArgs = isArguments(a),
-      bIsArgs = isArguments(b);
+  if (strict && Object.getPrototypeOf(a) !== Object.getPrototypeOf(b))
+    return false;
+  var aIsArgs = isArguments(a);
+  var bIsArgs = isArguments(b);
   if ((aIsArgs && !bIsArgs) || (!aIsArgs && bIsArgs))
     return false;
   if (aIsArgs) {
     a = pSlice.call(a);
     b = pSlice.call(b);
-    return _deepEqual(a, b);
+    return _deepEqual(a, b, strict);
   }
-  var ka = objectKeys(a),
-      kb = objectKeys(b),
-      key, i;
+  var ka = objectKeys(a);
+  var kb = objectKeys(b);
+  var key, i;
   // having the same number of owned properties (keys incorporates
   // hasOwnProperty)
-  if (ka.length != kb.length)
+  if (ka.length !== kb.length)
     return false;
   //the same set of keys (although not necessarily the same order),
   ka.sort();
   kb.sort();
   //~~~cheap key test
   for (i = ka.length - 1; i >= 0; i--) {
-    if (ka[i] != kb[i])
+    if (ka[i] !== kb[i])
       return false;
   }
   //equivalent values for every corresponding key, and
   //~~~possibly expensive deep test
   for (i = ka.length - 1; i >= 0; i--) {
     key = ka[i];
-    if (!_deepEqual(a[key], b[key])) return false;
+    if (!_deepEqual(a[key], b[key], strict, actualVisitedObjects))
+      return false;
   }
   return true;
 }
@@ -2579,10 +2813,18 @@ function objEquiv(a, b) {
 // assert.notDeepEqual(actual, expected, message_opt);
 
 assert.notDeepEqual = function notDeepEqual(actual, expected, message) {
-  if (_deepEqual(actual, expected)) {
+  if (_deepEqual(actual, expected, false)) {
     fail(actual, expected, message, 'notDeepEqual', assert.notDeepEqual);
   }
 };
+
+assert.notDeepStrictEqual = notDeepStrictEqual;
+function notDeepStrictEqual(actual, expected, message) {
+  if (_deepEqual(actual, expected, true)) {
+    fail(actual, expected, message, 'notDeepStrictEqual', notDeepStrictEqual);
+  }
+}
+
 
 // 9. The strict equality assertion tests strict equality, as determined by ===.
 // assert.strictEqual(actual, expected, message_opt);
@@ -2609,28 +2851,46 @@ function expectedException(actual, expected) {
 
   if (Object.prototype.toString.call(expected) == '[object RegExp]') {
     return expected.test(actual);
-  } else if (actual instanceof expected) {
-    return true;
-  } else if (expected.call({}, actual) === true) {
-    return true;
   }
 
-  return false;
+  try {
+    if (actual instanceof expected) {
+      return true;
+    }
+  } catch (e) {
+    // Ignore.  The instanceof check doesn't work for arrow functions.
+  }
+
+  if (Error.isPrototypeOf(expected)) {
+    return false;
+  }
+
+  return expected.call({}, actual) === true;
+}
+
+function _tryBlock(block) {
+  var error;
+  try {
+    block();
+  } catch (e) {
+    error = e;
+  }
+  return error;
 }
 
 function _throws(shouldThrow, block, expected, message) {
   var actual;
 
-  if (util.isString(expected)) {
+  if (typeof block !== 'function') {
+    throw new TypeError('"block" argument must be a function');
+  }
+
+  if (typeof expected === 'string') {
     message = expected;
     expected = null;
   }
 
-  try {
-    block();
-  } catch (e) {
-    actual = e;
-  }
+  actual = _tryBlock(block);
 
   message = (expected && expected.name ? ' (' + expected.name + ').' : '.') +
             (message ? ' ' + message : '.');
@@ -2639,7 +2899,14 @@ function _throws(shouldThrow, block, expected, message) {
     fail(actual, expected, 'Missing expected exception' + message);
   }
 
-  if (!shouldThrow && expectedException(actual, expected)) {
+  var userProvidedMessage = typeof message === 'string';
+  var isUnwantedException = !shouldThrow && util.isError(actual);
+  var isUnexpectedException = !shouldThrow && actual && !expected;
+
+  if ((isUnwantedException &&
+      userProvidedMessage &&
+      expectedException(actual, expected)) ||
+      isUnexpectedException) {
     fail(actual, expected, 'Got unwanted exception' + message);
   }
 
@@ -2653,15 +2920,27 @@ function _throws(shouldThrow, block, expected, message) {
 // assert.throws(block, Error_opt, message_opt);
 
 assert.throws = function(block, /*optional*/error, /*optional*/message) {
-  _throws.apply(this, [true].concat(pSlice.call(arguments)));
+  _throws(true, block, error, message);
 };
 
 // EXTENSION! This is annoying to write outside this module.
-assert.doesNotThrow = function(block, /*optional*/message) {
-  _throws.apply(this, [false].concat(pSlice.call(arguments)));
+assert.doesNotThrow = function(block, /*optional*/error, /*optional*/message) {
+  _throws(false, block, error, message);
 };
 
-assert.ifError = function(err) { if (err) {throw err;}};
+assert.ifError = function(err) { if (err) throw err; };
+
+// Expose a strict only variant of assert
+function strict(value, message) {
+  if (!value) fail(value, true, message, '==', strict);
+}
+assert.strict = objectAssign(strict, assert, {
+  equal: assert.strictEqual,
+  deepEqual: assert.deepStrictEqual,
+  notEqual: assert.notStrictEqual,
+  notDeepEqual: assert.notDeepStrictEqual
+});
+assert.strict.strict = assert.strict;
 
 var objectKeys = Object.keys || function (obj) {
   var keys = [];
@@ -2671,7 +2950,8 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":29}],27:[function(require,module,exports){
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"object-assign":32,"util/":29}],27:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -3293,7 +3573,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":28,"_process":33,"inherits":27}],30:[function(require,module,exports){
+},{"./support/isBuffer":28,"_process":34,"inherits":27}],30:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -3315,8 +3595,16 @@ function hasOwnProperty(obj, prop) {
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+var objectCreate = Object.create || objectCreatePolyfill
+var objectKeys = Object.keys || objectKeysPolyfill
+var bind = Function.prototype.bind || functionBindPolyfill
+
 function EventEmitter() {
-  this._events = this._events || {};
+  if (!this._events || !Object.prototype.hasOwnProperty.call(this, '_events')) {
+    this._events = objectCreate(null);
+    this._eventsCount = 0;
+  }
+
   this._maxListeners = this._maxListeners || undefined;
 }
 module.exports = EventEmitter;
@@ -3329,277 +3617,609 @@ EventEmitter.prototype._maxListeners = undefined;
 
 // By default EventEmitters will print a warning if more than 10 listeners are
 // added to it. This is a useful default which helps finding memory leaks.
-EventEmitter.defaultMaxListeners = 10;
+var defaultMaxListeners = 10;
+
+var hasDefineProperty;
+try {
+  var o = {};
+  if (Object.defineProperty) Object.defineProperty(o, 'x', { value: 0 });
+  hasDefineProperty = o.x === 0;
+} catch (err) { hasDefineProperty = false }
+if (hasDefineProperty) {
+  Object.defineProperty(EventEmitter, 'defaultMaxListeners', {
+    enumerable: true,
+    get: function() {
+      return defaultMaxListeners;
+    },
+    set: function(arg) {
+      // check whether the input is a positive number (whose value is zero or
+      // greater and not a NaN).
+      if (typeof arg !== 'number' || arg < 0 || arg !== arg)
+        throw new TypeError('"defaultMaxListeners" must be a positive number');
+      defaultMaxListeners = arg;
+    }
+  });
+} else {
+  EventEmitter.defaultMaxListeners = defaultMaxListeners;
+}
 
 // Obviously not all Emitters should be limited to 10. This function allows
 // that to be increased. Set to zero for unlimited.
-EventEmitter.prototype.setMaxListeners = function(n) {
-  if (!isNumber(n) || n < 0 || isNaN(n))
-    throw TypeError('n must be a positive number');
+EventEmitter.prototype.setMaxListeners = function setMaxListeners(n) {
+  if (typeof n !== 'number' || n < 0 || isNaN(n))
+    throw new TypeError('"n" argument must be a positive number');
   this._maxListeners = n;
   return this;
 };
 
-EventEmitter.prototype.emit = function(type) {
-  var er, handler, len, args, i, listeners;
+function $getMaxListeners(that) {
+  if (that._maxListeners === undefined)
+    return EventEmitter.defaultMaxListeners;
+  return that._maxListeners;
+}
 
-  if (!this._events)
-    this._events = {};
+EventEmitter.prototype.getMaxListeners = function getMaxListeners() {
+  return $getMaxListeners(this);
+};
 
-  // If there is no 'error' event listener then throw.
-  if (type === 'error') {
-    if (!this._events.error ||
-        (isObject(this._events.error) && !this._events.error.length)) {
-      er = arguments[1];
-      if (er instanceof Error) {
-        throw er; // Unhandled 'error' event
-      } else {
-        // At least give some kind of context to the user
-        var err = new Error('Uncaught, unspecified "error" event. (' + er + ')');
-        err.context = er;
-        throw err;
-      }
-    }
+// These standalone emit* functions are used to optimize calling of event
+// handlers for fast cases because emit() itself often has a variable number of
+// arguments and can be deoptimized because of that. These functions always have
+// the same number of arguments and thus do not get deoptimized, so the code
+// inside them can execute faster.
+function emitNone(handler, isFn, self) {
+  if (isFn)
+    handler.call(self);
+  else {
+    var len = handler.length;
+    var listeners = arrayClone(handler, len);
+    for (var i = 0; i < len; ++i)
+      listeners[i].call(self);
   }
+}
+function emitOne(handler, isFn, self, arg1) {
+  if (isFn)
+    handler.call(self, arg1);
+  else {
+    var len = handler.length;
+    var listeners = arrayClone(handler, len);
+    for (var i = 0; i < len; ++i)
+      listeners[i].call(self, arg1);
+  }
+}
+function emitTwo(handler, isFn, self, arg1, arg2) {
+  if (isFn)
+    handler.call(self, arg1, arg2);
+  else {
+    var len = handler.length;
+    var listeners = arrayClone(handler, len);
+    for (var i = 0; i < len; ++i)
+      listeners[i].call(self, arg1, arg2);
+  }
+}
+function emitThree(handler, isFn, self, arg1, arg2, arg3) {
+  if (isFn)
+    handler.call(self, arg1, arg2, arg3);
+  else {
+    var len = handler.length;
+    var listeners = arrayClone(handler, len);
+    for (var i = 0; i < len; ++i)
+      listeners[i].call(self, arg1, arg2, arg3);
+  }
+}
 
-  handler = this._events[type];
+function emitMany(handler, isFn, self, args) {
+  if (isFn)
+    handler.apply(self, args);
+  else {
+    var len = handler.length;
+    var listeners = arrayClone(handler, len);
+    for (var i = 0; i < len; ++i)
+      listeners[i].apply(self, args);
+  }
+}
 
-  if (isUndefined(handler))
+EventEmitter.prototype.emit = function emit(type) {
+  var er, handler, len, args, i, events;
+  var doError = (type === 'error');
+
+  events = this._events;
+  if (events)
+    doError = (doError && events.error == null);
+  else if (!doError)
     return false;
 
-  if (isFunction(handler)) {
-    switch (arguments.length) {
-      // fast cases
-      case 1:
-        handler.call(this);
-        break;
-      case 2:
-        handler.call(this, arguments[1]);
-        break;
-      case 3:
-        handler.call(this, arguments[1], arguments[2]);
-        break;
-      // slower
-      default:
-        args = Array.prototype.slice.call(arguments, 1);
-        handler.apply(this, args);
+  // If there is no 'error' event listener then throw.
+  if (doError) {
+    if (arguments.length > 1)
+      er = arguments[1];
+    if (er instanceof Error) {
+      throw er; // Unhandled 'error' event
+    } else {
+      // At least give some kind of context to the user
+      var err = new Error('Unhandled "error" event. (' + er + ')');
+      err.context = er;
+      throw err;
     }
-  } else if (isObject(handler)) {
-    args = Array.prototype.slice.call(arguments, 1);
-    listeners = handler.slice();
-    len = listeners.length;
-    for (i = 0; i < len; i++)
-      listeners[i].apply(this, args);
+    return false;
+  }
+
+  handler = events[type];
+
+  if (!handler)
+    return false;
+
+  var isFn = typeof handler === 'function';
+  len = arguments.length;
+  switch (len) {
+      // fast cases
+    case 1:
+      emitNone(handler, isFn, this);
+      break;
+    case 2:
+      emitOne(handler, isFn, this, arguments[1]);
+      break;
+    case 3:
+      emitTwo(handler, isFn, this, arguments[1], arguments[2]);
+      break;
+    case 4:
+      emitThree(handler, isFn, this, arguments[1], arguments[2], arguments[3]);
+      break;
+      // slower
+    default:
+      args = new Array(len - 1);
+      for (i = 1; i < len; i++)
+        args[i - 1] = arguments[i];
+      emitMany(handler, isFn, this, args);
   }
 
   return true;
 };
 
-EventEmitter.prototype.addListener = function(type, listener) {
+function _addListener(target, type, listener, prepend) {
   var m;
+  var events;
+  var existing;
 
-  if (!isFunction(listener))
-    throw TypeError('listener must be a function');
+  if (typeof listener !== 'function')
+    throw new TypeError('"listener" argument must be a function');
 
-  if (!this._events)
-    this._events = {};
+  events = target._events;
+  if (!events) {
+    events = target._events = objectCreate(null);
+    target._eventsCount = 0;
+  } else {
+    // To avoid recursion in the case that type === "newListener"! Before
+    // adding it to the listeners, first emit "newListener".
+    if (events.newListener) {
+      target.emit('newListener', type,
+          listener.listener ? listener.listener : listener);
 
-  // To avoid recursion in the case that type === "newListener"! Before
-  // adding it to the listeners, first emit "newListener".
-  if (this._events.newListener)
-    this.emit('newListener', type,
-              isFunction(listener.listener) ?
-              listener.listener : listener);
+      // Re-assign `events` because a newListener handler could have caused the
+      // this._events to be assigned to a new object
+      events = target._events;
+    }
+    existing = events[type];
+  }
 
-  if (!this._events[type])
+  if (!existing) {
     // Optimize the case of one listener. Don't need the extra array object.
-    this._events[type] = listener;
-  else if (isObject(this._events[type]))
-    // If we've already got an array, just append.
-    this._events[type].push(listener);
-  else
-    // Adding the second element, need to change to array.
-    this._events[type] = [this._events[type], listener];
-
-  // Check for listener leak
-  if (isObject(this._events[type]) && !this._events[type].warned) {
-    if (!isUndefined(this._maxListeners)) {
-      m = this._maxListeners;
+    existing = events[type] = listener;
+    ++target._eventsCount;
+  } else {
+    if (typeof existing === 'function') {
+      // Adding the second element, need to change to array.
+      existing = events[type] =
+          prepend ? [listener, existing] : [existing, listener];
     } else {
-      m = EventEmitter.defaultMaxListeners;
+      // If we've already got an array, just append.
+      if (prepend) {
+        existing.unshift(listener);
+      } else {
+        existing.push(listener);
+      }
     }
 
-    if (m && m > 0 && this._events[type].length > m) {
-      this._events[type].warned = true;
-      console.error('(node) warning: possible EventEmitter memory ' +
-                    'leak detected. %d listeners added. ' +
-                    'Use emitter.setMaxListeners() to increase limit.',
-                    this._events[type].length);
-      if (typeof console.trace === 'function') {
-        // not supported in IE 10
-        console.trace();
+    // Check for listener leak
+    if (!existing.warned) {
+      m = $getMaxListeners(target);
+      if (m && m > 0 && existing.length > m) {
+        existing.warned = true;
+        var w = new Error('Possible EventEmitter memory leak detected. ' +
+            existing.length + ' "' + String(type) + '" listeners ' +
+            'added. Use emitter.setMaxListeners() to ' +
+            'increase limit.');
+        w.name = 'MaxListenersExceededWarning';
+        w.emitter = target;
+        w.type = type;
+        w.count = existing.length;
+        if (typeof console === 'object' && console.warn) {
+          console.warn('%s: %s', w.name, w.message);
+        }
       }
     }
   }
 
-  return this;
+  return target;
+}
+
+EventEmitter.prototype.addListener = function addListener(type, listener) {
+  return _addListener(this, type, listener, false);
 };
 
 EventEmitter.prototype.on = EventEmitter.prototype.addListener;
 
-EventEmitter.prototype.once = function(type, listener) {
-  if (!isFunction(listener))
-    throw TypeError('listener must be a function');
+EventEmitter.prototype.prependListener =
+    function prependListener(type, listener) {
+      return _addListener(this, type, listener, true);
+    };
 
-  var fired = false;
-
-  function g() {
-    this.removeListener(type, g);
-
-    if (!fired) {
-      fired = true;
-      listener.apply(this, arguments);
+function onceWrapper() {
+  if (!this.fired) {
+    this.target.removeListener(this.type, this.wrapFn);
+    this.fired = true;
+    switch (arguments.length) {
+      case 0:
+        return this.listener.call(this.target);
+      case 1:
+        return this.listener.call(this.target, arguments[0]);
+      case 2:
+        return this.listener.call(this.target, arguments[0], arguments[1]);
+      case 3:
+        return this.listener.call(this.target, arguments[0], arguments[1],
+            arguments[2]);
+      default:
+        var args = new Array(arguments.length);
+        for (var i = 0; i < args.length; ++i)
+          args[i] = arguments[i];
+        this.listener.apply(this.target, args);
     }
   }
+}
 
-  g.listener = listener;
-  this.on(type, g);
+function _onceWrap(target, type, listener) {
+  var state = { fired: false, wrapFn: undefined, target: target, type: type, listener: listener };
+  var wrapped = bind.call(onceWrapper, state);
+  wrapped.listener = listener;
+  state.wrapFn = wrapped;
+  return wrapped;
+}
 
+EventEmitter.prototype.once = function once(type, listener) {
+  if (typeof listener !== 'function')
+    throw new TypeError('"listener" argument must be a function');
+  this.on(type, _onceWrap(this, type, listener));
   return this;
 };
 
-// emits a 'removeListener' event iff the listener was removed
-EventEmitter.prototype.removeListener = function(type, listener) {
-  var list, position, length, i;
-
-  if (!isFunction(listener))
-    throw TypeError('listener must be a function');
-
-  if (!this._events || !this._events[type])
-    return this;
-
-  list = this._events[type];
-  length = list.length;
-  position = -1;
-
-  if (list === listener ||
-      (isFunction(list.listener) && list.listener === listener)) {
-    delete this._events[type];
-    if (this._events.removeListener)
-      this.emit('removeListener', type, listener);
-
-  } else if (isObject(list)) {
-    for (i = length; i-- > 0;) {
-      if (list[i] === listener ||
-          (list[i].listener && list[i].listener === listener)) {
-        position = i;
-        break;
-      }
-    }
-
-    if (position < 0)
+EventEmitter.prototype.prependOnceListener =
+    function prependOnceListener(type, listener) {
+      if (typeof listener !== 'function')
+        throw new TypeError('"listener" argument must be a function');
+      this.prependListener(type, _onceWrap(this, type, listener));
       return this;
+    };
 
-    if (list.length === 1) {
-      list.length = 0;
-      delete this._events[type];
-    } else {
-      list.splice(position, 1);
-    }
+// Emits a 'removeListener' event if and only if the listener was removed.
+EventEmitter.prototype.removeListener =
+    function removeListener(type, listener) {
+      var list, events, position, i, originalListener;
 
-    if (this._events.removeListener)
-      this.emit('removeListener', type, listener);
-  }
+      if (typeof listener !== 'function')
+        throw new TypeError('"listener" argument must be a function');
 
-  return this;
+      events = this._events;
+      if (!events)
+        return this;
+
+      list = events[type];
+      if (!list)
+        return this;
+
+      if (list === listener || list.listener === listener) {
+        if (--this._eventsCount === 0)
+          this._events = objectCreate(null);
+        else {
+          delete events[type];
+          if (events.removeListener)
+            this.emit('removeListener', type, list.listener || listener);
+        }
+      } else if (typeof list !== 'function') {
+        position = -1;
+
+        for (i = list.length - 1; i >= 0; i--) {
+          if (list[i] === listener || list[i].listener === listener) {
+            originalListener = list[i].listener;
+            position = i;
+            break;
+          }
+        }
+
+        if (position < 0)
+          return this;
+
+        if (position === 0)
+          list.shift();
+        else
+          spliceOne(list, position);
+
+        if (list.length === 1)
+          events[type] = list[0];
+
+        if (events.removeListener)
+          this.emit('removeListener', type, originalListener || listener);
+      }
+
+      return this;
+    };
+
+EventEmitter.prototype.removeAllListeners =
+    function removeAllListeners(type) {
+      var listeners, events, i;
+
+      events = this._events;
+      if (!events)
+        return this;
+
+      // not listening for removeListener, no need to emit
+      if (!events.removeListener) {
+        if (arguments.length === 0) {
+          this._events = objectCreate(null);
+          this._eventsCount = 0;
+        } else if (events[type]) {
+          if (--this._eventsCount === 0)
+            this._events = objectCreate(null);
+          else
+            delete events[type];
+        }
+        return this;
+      }
+
+      // emit removeListener for all listeners on all events
+      if (arguments.length === 0) {
+        var keys = objectKeys(events);
+        var key;
+        for (i = 0; i < keys.length; ++i) {
+          key = keys[i];
+          if (key === 'removeListener') continue;
+          this.removeAllListeners(key);
+        }
+        this.removeAllListeners('removeListener');
+        this._events = objectCreate(null);
+        this._eventsCount = 0;
+        return this;
+      }
+
+      listeners = events[type];
+
+      if (typeof listeners === 'function') {
+        this.removeListener(type, listeners);
+      } else if (listeners) {
+        // LIFO order
+        for (i = listeners.length - 1; i >= 0; i--) {
+          this.removeListener(type, listeners[i]);
+        }
+      }
+
+      return this;
+    };
+
+function _listeners(target, type, unwrap) {
+  var events = target._events;
+
+  if (!events)
+    return [];
+
+  var evlistener = events[type];
+  if (!evlistener)
+    return [];
+
+  if (typeof evlistener === 'function')
+    return unwrap ? [evlistener.listener || evlistener] : [evlistener];
+
+  return unwrap ? unwrapListeners(evlistener) : arrayClone(evlistener, evlistener.length);
+}
+
+EventEmitter.prototype.listeners = function listeners(type) {
+  return _listeners(this, type, true);
 };
 
-EventEmitter.prototype.removeAllListeners = function(type) {
-  var key, listeners;
-
-  if (!this._events)
-    return this;
-
-  // not listening for removeListener, no need to emit
-  if (!this._events.removeListener) {
-    if (arguments.length === 0)
-      this._events = {};
-    else if (this._events[type])
-      delete this._events[type];
-    return this;
-  }
-
-  // emit removeListener for all listeners on all events
-  if (arguments.length === 0) {
-    for (key in this._events) {
-      if (key === 'removeListener') continue;
-      this.removeAllListeners(key);
-    }
-    this.removeAllListeners('removeListener');
-    this._events = {};
-    return this;
-  }
-
-  listeners = this._events[type];
-
-  if (isFunction(listeners)) {
-    this.removeListener(type, listeners);
-  } else if (listeners) {
-    // LIFO order
-    while (listeners.length)
-      this.removeListener(type, listeners[listeners.length - 1]);
-  }
-  delete this._events[type];
-
-  return this;
-};
-
-EventEmitter.prototype.listeners = function(type) {
-  var ret;
-  if (!this._events || !this._events[type])
-    ret = [];
-  else if (isFunction(this._events[type]))
-    ret = [this._events[type]];
-  else
-    ret = this._events[type].slice();
-  return ret;
-};
-
-EventEmitter.prototype.listenerCount = function(type) {
-  if (this._events) {
-    var evlistener = this._events[type];
-
-    if (isFunction(evlistener))
-      return 1;
-    else if (evlistener)
-      return evlistener.length;
-  }
-  return 0;
+EventEmitter.prototype.rawListeners = function rawListeners(type) {
+  return _listeners(this, type, false);
 };
 
 EventEmitter.listenerCount = function(emitter, type) {
-  return emitter.listenerCount(type);
+  if (typeof emitter.listenerCount === 'function') {
+    return emitter.listenerCount(type);
+  } else {
+    return listenerCount.call(emitter, type);
+  }
 };
 
-function isFunction(arg) {
-  return typeof arg === 'function';
+EventEmitter.prototype.listenerCount = listenerCount;
+function listenerCount(type) {
+  var events = this._events;
+
+  if (events) {
+    var evlistener = events[type];
+
+    if (typeof evlistener === 'function') {
+      return 1;
+    } else if (evlistener) {
+      return evlistener.length;
+    }
+  }
+
+  return 0;
 }
 
-function isNumber(arg) {
-  return typeof arg === 'number';
+EventEmitter.prototype.eventNames = function eventNames() {
+  return this._eventsCount > 0 ? Reflect.ownKeys(this._events) : [];
+};
+
+// About 1.5x faster than the two-arg version of Array#splice().
+function spliceOne(list, index) {
+  for (var i = index, k = i + 1, n = list.length; k < n; i += 1, k += 1)
+    list[i] = list[k];
+  list.pop();
 }
 
-function isObject(arg) {
-  return typeof arg === 'object' && arg !== null;
+function arrayClone(arr, n) {
+  var copy = new Array(n);
+  for (var i = 0; i < n; ++i)
+    copy[i] = arr[i];
+  return copy;
 }
 
-function isUndefined(arg) {
-  return arg === void 0;
+function unwrapListeners(arr) {
+  var ret = new Array(arr.length);
+  for (var i = 0; i < ret.length; ++i) {
+    ret[i] = arr[i].listener || arr[i];
+  }
+  return ret;
+}
+
+function objectCreatePolyfill(proto) {
+  var F = function() {};
+  F.prototype = proto;
+  return new F;
+}
+function objectKeysPolyfill(obj) {
+  var keys = [];
+  for (var k in obj) if (Object.prototype.hasOwnProperty.call(obj, k)) {
+    keys.push(k);
+  }
+  return k;
+}
+function functionBindPolyfill(context) {
+  var fn = this;
+  return function () {
+    return fn.apply(context, arguments);
+  };
 }
 
 },{}],31:[function(require,module,exports){
-arguments[4][27][0].apply(exports,arguments)
-},{"dup":27}],32:[function(require,module,exports){
+if (typeof Object.create === 'function') {
+  // implementation from standard node.js 'util' module
+  module.exports = function inherits(ctor, superCtor) {
+    if (superCtor) {
+      ctor.super_ = superCtor
+      ctor.prototype = Object.create(superCtor.prototype, {
+        constructor: {
+          value: ctor,
+          enumerable: false,
+          writable: true,
+          configurable: true
+        }
+      })
+    }
+  };
+} else {
+  // old school shim for old browsers
+  module.exports = function inherits(ctor, superCtor) {
+    if (superCtor) {
+      ctor.super_ = superCtor
+      var TempCtor = function () {}
+      TempCtor.prototype = superCtor.prototype
+      ctor.prototype = new TempCtor()
+      ctor.prototype.constructor = ctor
+    }
+  }
+}
+
+},{}],32:[function(require,module,exports){
+/*
+object-assign
+(c) Sindre Sorhus
+@license MIT
+*/
+
+'use strict';
+/* eslint-disable no-unused-vars */
+var getOwnPropertySymbols = Object.getOwnPropertySymbols;
+var hasOwnProperty = Object.prototype.hasOwnProperty;
+var propIsEnumerable = Object.prototype.propertyIsEnumerable;
+
+function toObject(val) {
+	if (val === null || val === undefined) {
+		throw new TypeError('Object.assign cannot be called with null or undefined');
+	}
+
+	return Object(val);
+}
+
+function shouldUseNative() {
+	try {
+		if (!Object.assign) {
+			return false;
+		}
+
+		// Detect buggy property enumeration order in older V8 versions.
+
+		// https://bugs.chromium.org/p/v8/issues/detail?id=4118
+		var test1 = new String('abc');  // eslint-disable-line no-new-wrappers
+		test1[5] = 'de';
+		if (Object.getOwnPropertyNames(test1)[0] === '5') {
+			return false;
+		}
+
+		// https://bugs.chromium.org/p/v8/issues/detail?id=3056
+		var test2 = {};
+		for (var i = 0; i < 10; i++) {
+			test2['_' + String.fromCharCode(i)] = i;
+		}
+		var order2 = Object.getOwnPropertyNames(test2).map(function (n) {
+			return test2[n];
+		});
+		if (order2.join('') !== '0123456789') {
+			return false;
+		}
+
+		// https://bugs.chromium.org/p/v8/issues/detail?id=3056
+		var test3 = {};
+		'abcdefghijklmnopqrst'.split('').forEach(function (letter) {
+			test3[letter] = letter;
+		});
+		if (Object.keys(Object.assign({}, test3)).join('') !==
+				'abcdefghijklmnopqrst') {
+			return false;
+		}
+
+		return true;
+	} catch (err) {
+		// We don't expect any of the above to throw, but better to be safe.
+		return false;
+	}
+}
+
+module.exports = shouldUseNative() ? Object.assign : function (target, source) {
+	var from;
+	var to = toObject(target);
+	var symbols;
+
+	for (var s = 1; s < arguments.length; s++) {
+		from = Object(arguments[s]);
+
+		for (var key in from) {
+			if (hasOwnProperty.call(from, key)) {
+				to[key] = from[key];
+			}
+		}
+
+		if (getOwnPropertySymbols) {
+			symbols = getOwnPropertySymbols(from);
+			for (var i = 0; i < symbols.length; i++) {
+				if (propIsEnumerable.call(from, symbols[i])) {
+					to[symbols[i]] = from[symbols[i]];
+				}
+			}
+		}
+	}
+
+	return to;
+};
+
+},{}],33:[function(require,module,exports){
 (function (process,setImmediate){
 /*
  * PinkySwear.js 2.2.2 - Minimalistic implementation of the Promises/A+ spec
@@ -3728,7 +4348,7 @@ arguments[4][27][0].apply(exports,arguments)
 
 
 }).call(this,require('_process'),require("timers").setImmediate)
-},{"_process":33,"timers":34}],33:[function(require,module,exports){
+},{"_process":34,"timers":35}],34:[function(require,module,exports){
 // shim for using process in browser
 var process = module.exports = {};
 
@@ -3914,7 +4534,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],34:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
 (function (setImmediate,clearImmediate){
 var nextTick = require('process/browser.js').nextTick;
 var apply = Function.prototype.apply;
@@ -3993,4 +4613,4 @@ exports.clearImmediate = typeof clearImmediate === "function" ? clearImmediate :
   delete immediateIds[id];
 };
 }).call(this,require("timers").setImmediate,require("timers").clearImmediate)
-},{"process/browser.js":33,"timers":34}]},{},[16]);
+},{"process/browser.js":34,"timers":35}]},{},[16]);

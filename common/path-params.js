@@ -5,7 +5,7 @@ var assert = require("assert");
 exports.addPathParams = function(url, params) {
   var pathFragment = "";
   for (var key in params) {
-    if (params.hasOwnProperty(key)) {
+    if (Object.prototype.hasOwnProperty.call(params, key)) {
       if (!/^\w*$/.test(key) || !/^\w*$/.test(params[key])) {
         throw new Error("util.addPathParams doesn't implement escaping");
       }

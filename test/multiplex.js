@@ -65,8 +65,8 @@ describe("Multiplex decorator", () => {
             [ { type: 'send', data: '0|o|' },
               { type: 'send', data: '0|m|Hello world!' },
               { type: 'send', data: '1|o|/subapp1/s=1' },
-              { type: 'send', data: '0|c|{\"code\":3000,\"reason\":\"Done for the day.\"}' },
-              { type: 'send', data: '1|c|{\"code\":3001,\"reason\":\"Gone fishing.\"}' },
+              { type: 'send', data: '0|c|{"code":3000,"reason":"Done for the day."}' },
+              { type: 'send', data: '1|c|{"code":3001,"reason":"Gone fishing."}' },
               { type: 'close', data: {}} ]
           )
         );
