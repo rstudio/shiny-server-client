@@ -15,7 +15,7 @@ dist/shiny-server-client.min.js: dist/shiny-server-client.js
 
 test:
 	./node_modules/.bin/mocha \
-		--compilers js:babel-register \
+		--require @babel/register \
 		--reporter $(REPORTER) \
 		$(TESTS)
 
