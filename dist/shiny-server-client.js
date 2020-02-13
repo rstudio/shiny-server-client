@@ -1431,11 +1431,17 @@ function fixupInternalLinks() {
     // doesn't exist on another worker, and b.) because we don't care about the
     // side-effect of creating a big mess in the URL bar, since it's just an
     // iframe and won't be visible anyway.
-    assert(!subapp.isSubApp()); // setting /any/ value to ev.target.href (even assigning it to itself) would
-    // have the side-effect of creating a real value in that property, even if
-    // one shouldn't exist
+    assert(!subapp.isSubApp());
+
+    if (ev.currentTarget.hasAttribute("data-toggle")) {
+      // Bootstrap collapse/tab links should not have their href touched
+      return;
+    }
 
     if (ev.currentTarget.href === null || !ev.currentTarget.href) {
+      // setting /any/ value to ev.target.href (even assigning it to itself) would
+      // have the side-effect of creating a real value in that property, even if
+      // one shouldn't exist
       return;
     }
 
