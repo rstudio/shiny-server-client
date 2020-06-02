@@ -8,10 +8,10 @@ build: dist/shiny-server-client.min.js
 
 dist/shiny-server-client.js: $(JSFILES)
 	mkdir -p dist
-	./node_modules/.bin/browserify lib/main.js -o dist/shiny-server-client.js -t babelify
+	npx browserify lib/main.js -o dist/shiny-server-client.js -t babelify
 
 dist/shiny-server-client.min.js: dist/shiny-server-client.js
-	./node_modules/.bin/uglifyjs < dist/shiny-server-client.js > dist/shiny-server-client.min.js
+	npx uglifyjs < dist/shiny-server-client.js > dist/shiny-server-client.min.js
 
 test:
 	./node_modules/.bin/mocha \
@@ -23,8 +23,8 @@ clean:
 	rm -f dist/shiny-server-client.js dist/shiny-server-client.min.js
 
 lint:
-	./node_modules/.bin/eslint lib
-	./node_modules/.bin/eslint -c .eslintrc.es5.js common
-	./node_modules/.bin/eslint --env=mocha test
+	npx eslint lib
+	npx eslint -c .eslintrc.es5.js common
+	npx eslint --env=mocha test
 
 .PHONY: test clean all build lint
