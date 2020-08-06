@@ -2127,8 +2127,11 @@ exports.createFactory = function (protocolChooser, options) {
 
     var transportDebugging = options.transportDebugging == true;
     var sockjsOptions = {
+      // sockjs 0.3.4 and earlier
       protocols_whitelist: whitelist,
-      debug: transportDebugging
+      debug: transportDebugging,
+      // sockjs 1.0.0+
+      transports: whitelist
     };
     var conn = new global.SockJS(url, null, sockjsOptions);
     currConn = conn;
