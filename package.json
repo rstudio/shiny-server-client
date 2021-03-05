@@ -4,7 +4,6 @@
   "description": "Browser library for connecting to Shiny Server and Shiny Server Pro",
   "private": true,
   "scripts": {
-    "prepare": "make",
     "test": "make test"
   },
   "author": "RStudio <node@rstudio.com>",
