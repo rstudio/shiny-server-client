@@ -2194,6 +2194,14 @@ exports.onLicense = onLicense;
 
 function onLicense(Shiny, license) {
   if (!license) return;
+
+  try {
+    if (window.localStorage.getItem("ssp_log_license")) {
+      console.log(license);
+    }
+  } catch (err) {// No need to report
+  }
+
   if (license.status !== 'expired' && license.status !== 'grace') return;
   var noun = license.evaluation ? 'evaluation' : 'license';
   var message = 'Your Shiny Server ' + noun + ' expired';
