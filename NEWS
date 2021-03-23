@@ -1,3 +1,10 @@
+## v1.2.0 (2021-03-23)
+
+* Removed support for SockJS pre-1.0. Added support for SockJS 1.0+ (tested
+  with SockJS 1.5.0). Adds the "eventsource" and "htmlfile" protocols. The
+  "transportDebugging" option is ignored; it is no longer supported by the
+  underlying SockJS library.
+
 ## v1.1.0 (2020-02-11)
 
 * Upgrade dependencies, fix eslint errors

@@ -1861,7 +1861,7 @@ exports.init = function (shinyServer, disableProtocols) {
     }
   }
 
-  var availableOptions = ["websocket", "xdr-streaming", "xhr-streaming", "iframe-eventsource", "iframe-htmlfile", "xdr-polling", "xhr-polling", "iframe-xhr-polling", "jsonp-polling"]; // `slice` with no args is a shallow clone. since `availableOptions` is all strings, it's de facto deep cloned.
+  var availableOptions = ["websocket", "xhr-streaming", "xdr-streaming", "eventsource", "iframe-eventsource", "htmlfile", "iframe-htmlfile", "xhr-polling", "xdr-polling", "iframe-xhr-polling", "jsonp-polling"]; // `slice` with no args is a shallow clone. since `availableOptions` is all strings, it's de facto deep cloned.
 
   var defaultPermitted = availableOptions.slice(); // MS Edge works very poorly with xhr-streaming (repro'd with shinyapps.io and RSC on Edge 17.17134)
 
@@ -2118,17 +2118,15 @@ exports.createFactory = function (protocolChooser, options) {
       }
     }); // If we are left with an empty whitelist, add a dummy protocol for the
     // edge case where we end up with no valid protocols. SockJS interprets an
-    // empty protocols_whitelist as permitting _all_ protocols. Useful when
-    // trying to test behavior when all protocols are disabled.
+    // empty transport list as permitting _all_ protocols. Useful when trying
+    // to test behavior when all protocols are disabled.
 
     if (whitelist.length == 0) {
       whitelist.push("dummy");
     }
 
-    var transportDebugging = options.transportDebugging == true;
     var sockjsOptions = {
-      protocols_whitelist: whitelist,
-      debug: transportDebugging
+      transports: whitelist
     };
     var conn = new global.SockJS(url, null, sockjsOptions);
     currConn = conn;
