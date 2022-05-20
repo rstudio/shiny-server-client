@@ -13,8 +13,7 @@
     "url": "https://github.com/rstudio/shiny-server-client"
   },
   "dependencies": {
-    "inherits": "^2.0.4",
-    "pinkyswear": "~2.2"
+    "inherits": "^2.0.4"
   },
   "devDependencies": {
     "@babel/core": "^7.9.6",

@@ -293,7 +293,7 @@ exports.extractParams = function (url) {
   return result;
 };
 
-},{"assert":26}],5:[function(require,module,exports){
+},{"assert":27}],5:[function(require,module,exports){
 /*eslint-disable no-console*/
 "use strict";
 
@@ -386,7 +386,7 @@ function ConnectionContext() {
 
 inherits(ConnectionContext, EventEmitter);
 
-},{"events":30,"inherits":31}],8:[function(require,module,exports){
+},{"events":31,"inherits":32}],8:[function(require,module,exports){
 "use strict";
 
 var BaseConnectionDecorator = require("./base-connection-decorator");
@@ -528,7 +528,7 @@ exports.decorate = function (factory, options) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../../common/path-params":4,"../multiplex-client":17,"../promised-connection":18,"../util":24}],11:[function(require,module,exports){
+},{"../../common/path-params":4,"../multiplex-client":17,"../promised-connection":19,"../util":25}],11:[function(require,module,exports){
 "use strict";
 
 var assert = require("assert");
@@ -1069,7 +1069,7 @@ BufferedResendConnection.prototype.send = function (data) {
   if (!this._disconnected) this._conn.send(data);
 };
 
-},{"../../common/message-buffer":1,"../../common/message-receiver":2,"../../common/message-utils":3,"../../common/path-params":4,"../debug":5,"../log":15,"../util":24,"../websocket":25,"./base-connection-decorator":6,"assert":26,"events":30,"inherits":31}],12:[function(require,module,exports){
+},{"../../common/message-buffer":1,"../../common/message-receiver":2,"../../common/message-utils":3,"../../common/path-params":4,"../debug":5,"../log":15,"../util":25,"../websocket":26,"./base-connection-decorator":6,"assert":27,"events":31,"inherits":32}],12:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1207,7 +1207,7 @@ function fixupUrl(href, location) {
   return base + search + hash;
 }
 
-},{"assert":26}],15:[function(require,module,exports){
+},{"assert":27}],15:[function(require,module,exports){
 /*eslint-disable no-console*/
 "use strict";
 
@@ -1460,7 +1460,7 @@ global.Shiny.createSocket = function () {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./decorators/connection-context":7,"./decorators/disconnect":8,"./decorators/extend-session":9,"./decorators/multiplex":10,"./decorators/reconnect":11,"./decorators/token":12,"./decorators/worker-id":13,"./fixup-url":14,"./log":15,"./promised-connection":18,"./protocol-chooser":19,"./reconnect-ui":20,"./sockjs":21,"./subapp":22,"./ui":23,"assert":26}],17:[function(require,module,exports){
+},{"./decorators/connection-context":7,"./decorators/disconnect":8,"./decorators/extend-session":9,"./decorators/multiplex":10,"./decorators/reconnect":11,"./decorators/token":12,"./decorators/worker-id":13,"./fixup-url":14,"./log":15,"./promised-connection":19,"./protocol-chooser":20,"./reconnect-ui":21,"./sockjs":22,"./subapp":23,"./ui":24,"assert":27}],17:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1711,6 +1711,133 @@ function parseMultiplexData(msg) {
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"./debug":5,"./log":15}],18:[function(require,module,exports){
+(function (process,setImmediate){
+"use strict";
+
+function _typeof(obj) { "@babel/helpers - typeof"; if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
+
+/* eslint-disable no-inner-declarations */
+// https://github.com/timjansen/PinkySwear.js/blob/fa78f9799868893101b0960ef977ffa3900e9a94/pinkyswear.js
+// Modified to remove UMD
+
+/*
+ * PinkySwear.js 2.2.2 - Minimalistic implementation of the Promises/A+ spec
+ *
+ * Public Domain. Use, modify and distribute it any way you like. No attribution required.
+ *
+ * NO WARRANTY EXPRESSED OR IMPLIED. USE AT YOUR OWN RISK.
+ *
+ * PinkySwear is a very small implementation of the Promises/A+ specification. After compilation with the
+ * Google Closure Compiler and gzipping it weighs less than 500 bytes. It is based on the implementation for
+ * Minified.js and should be perfect for embedding.
+ *
+ *
+ * PinkySwear has just three functions.
+ *
+ * To create a new promise in pending state, call pinkySwear():
+ *         var promise = pinkySwear();
+ *
+ * The returned object has a Promises/A+ compatible then() implementation:
+ *          promise.then(function(value) { alert("Success!"); }, function(value) { alert("Failure!"); });
+ *
+ *
+ * The promise returned by pinkySwear() is a function. To fulfill the promise, call the function with true as first argument and
+ * an optional array of values to pass to the then() handler. By putting more than one value in the array, you can pass more than one
+ * value to the then() handlers. Here an example to fulfill a promsise, this time with only one argument:
+ *         promise(true, [42]);
+ *
+ * When the promise has been rejected, call it with false. Again, there may be more than one argument for the then() handler:
+ *         promise(true, [6, 6, 6]);
+ *
+ * You can obtain the promise's current state by calling the function without arguments. It will be true if fulfilled,
+ * false if rejected, and otherwise undefined.
+ * 		   var state = promise();
+ *
+ * https://github.com/timjansen/PinkySwear.js
+ */
+var undef;
+
+function isFunction(f) {
+  return typeof f == "function";
+}
+
+function isObject(f) {
+  return _typeof(f) == "object";
+}
+
+function defer(callback) {
+  if (typeof setImmediate != "undefined") setImmediate(callback);else if (typeof process != "undefined" && process["nextTick"]) process["nextTick"](callback);else setTimeout(callback, 0);
+}
+
+function pinkySwear(extend) {
+  var state; // undefined/null = pending, true = fulfilled, false = rejected
+
+  var values = []; // an array of values as arguments for the then() handlers
+
+  var deferred = []; // functions to call when set() is invoked
+
+  var set = function set(newState, newValues) {
+    if (state == null && newState != null) {
+      state = newState;
+      values = newValues;
+      if (deferred.length) defer(function () {
+        for (var i = 0; i < deferred.length; i++) {
+          deferred[i]();
+        }
+      });
+    }
+
+    return state;
+  };
+
+  set["then"] = function (onFulfilled, onRejected) {
+    var promise2 = pinkySwear(extend);
+
+    var callCallbacks = function callCallbacks() {
+      try {
+        var f = state ? onFulfilled : onRejected;
+
+        if (isFunction(f)) {
+          var resolve = function resolve(x) {
+            var then,
+                cbCalled = 0;
+
+            try {
+              if (x && (isObject(x) || isFunction(x)) && isFunction(then = x["then"])) {
+                if (x === promise2) throw new TypeError();
+                then["call"](x, function () {
+                  if (!cbCalled++) resolve.apply(undef, arguments);
+                }, function (value) {
+                  if (!cbCalled++) promise2(false, [value]);
+                });
+              } else promise2(true, arguments);
+            } catch (e) {
+              if (!cbCalled++) promise2(false, [e]);
+            }
+          };
+
+          resolve(f.apply(undef, values || []));
+        } else promise2(state, values);
+      } catch (e) {
+        promise2(false, [e]);
+      }
+    };
+
+    if (state != null) defer(callCallbacks);else deferred.push(callCallbacks);
+    return promise2;
+  };
+
+  if (extend) {
+    set = extend(set);
+  }
+
+  return set;
+}
+
+module.exports = pinkySwear;
+
+}).call(this,require('_process'),require("timers").setImmediate)
+},{"_process":34,"timers":35}],19:[function(require,module,exports){
 "use strict";
 
 var util = require("./util");
@@ -1838,7 +1965,7 @@ Object.defineProperty(PromisedConnection.prototype, "extensions", {
   }
 });
 
-},{"./util":24,"./websocket":25}],19:[function(require,module,exports){
+},{"./util":25,"./websocket":26}],20:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -1980,7 +2107,7 @@ exports.init = function (shinyServer, disableProtocols) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],20:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -2076,7 +2203,7 @@ ReconnectUI.prototype.showDisconnected = function () {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"events":30,"inherits":31}],21:[function(require,module,exports){
+},{"events":31,"inherits":32}],22:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -2135,7 +2262,7 @@ exports.createFactory = function (protocolChooser, options) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../common/path-params":4,"./log":15}],22:[function(require,module,exports){
+},{"../common/path-params":4,"./log":15}],23:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -2160,7 +2287,7 @@ function createSocket() {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],23:[function(require,module,exports){
+},{}],24:[function(require,module,exports){
 (function (global){
 "use strict";
 
@@ -2231,13 +2358,13 @@ function onLicense(Shiny, license) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],24:[function(require,module,exports){
+},{}],25:[function(require,module,exports){
 (function (global){
 "use strict";
 
 var log = require("./log");
 
-var pinkySwear = require("pinkyswear");
+var pinkySwear = require("./pinkyswear");
 
 exports.createNiceBackoffDelayFunc = function () {
   // delays, in seconds; recycle the last value as needed
@@ -2444,7 +2571,7 @@ Object.defineProperty(PauseConnection.prototype, "extensions", {
 });
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./log":15,"pinkyswear":33}],25:[function(require,module,exports){
+},{"./log":15,"./pinkyswear":18}],26:[function(require,module,exports){
 "use strict"; // Constants from WebSocket and SockJS APIs.
 
 exports.CONNECTING = 0;
@@ -2452,7 +2579,7 @@ exports.OPEN = 1;
 exports.CLOSING = 2;
 exports.CLOSED = 3;
 
-},{}],26:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 (function (global){
 'use strict';
 
@@ -2962,7 +3089,7 @@ var objectKeys = Object.keys || function (obj) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"object-assign":32,"util/":29}],27:[function(require,module,exports){
+},{"object-assign":33,"util/":30}],28:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -2987,14 +3114,14 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],28:[function(require,module,exports){
+},{}],29:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],29:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -3584,7 +3711,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":28,"_process":34,"inherits":27}],30:[function(require,module,exports){
+},{"./support/isBuffer":29,"_process":34,"inherits":28}],31:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -4109,7 +4236,7 @@ function functionBindPolyfill(context) {
   };
 }
 
-},{}],31:[function(require,module,exports){
+},{}],32:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -4138,7 +4265,7 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],32:[function(require,module,exports){
+},{}],33:[function(require,module,exports){
 /*
 object-assign
 (c) Sindre Sorhus
@@ -4230,136 +4357,7 @@ module.exports = shouldUseNative() ? Object.assign : function (target, source) {
 	return to;
 };
 
-},{}],33:[function(require,module,exports){
-(function (process,setImmediate){
-/*
- * PinkySwear.js 2.2.2 - Minimalistic implementation of the Promises/A+ spec
- * 
- * Public Domain. Use, modify and distribute it any way you like. No attribution required.
- *
- * NO WARRANTY EXPRESSED OR IMPLIED. USE AT YOUR OWN RISK.
- *
- * PinkySwear is a very small implementation of the Promises/A+ specification. After compilation with the
- * Google Closure Compiler and gzipping it weighs less than 500 bytes. It is based on the implementation for 
- * Minified.js and should be perfect for embedding. 
- *
- *
- * PinkySwear has just three functions.
- *
- * To create a new promise in pending state, call pinkySwear():
- *         var promise = pinkySwear();
- *
- * The returned object has a Promises/A+ compatible then() implementation:
- *          promise.then(function(value) { alert("Success!"); }, function(value) { alert("Failure!"); });
- *
- *
- * The promise returned by pinkySwear() is a function. To fulfill the promise, call the function with true as first argument and
- * an optional array of values to pass to the then() handler. By putting more than one value in the array, you can pass more than one
- * value to the then() handlers. Here an example to fulfill a promsise, this time with only one argument: 
- *         promise(true, [42]);
- *
- * When the promise has been rejected, call it with false. Again, there may be more than one argument for the then() handler:
- *         promise(true, [6, 6, 6]);
- *         
- * You can obtain the promise's current state by calling the function without arguments. It will be true if fulfilled,
- * false if rejected, and otherwise undefined.
- * 		   var state = promise(); 
- * 
- * https://github.com/timjansen/PinkySwear.js
- */
-(function (root, factory) {
-	if (typeof define === 'function' && define.amd) {
-		define([], factory);
-	} else if (typeof module === 'object' && module.exports) {
-		module.exports = factory();
-	} else {
-		root.pinkySwear = factory();
-	}
-}(this, function() {
-	var undef;
-
-	function isFunction(f) {
-		return typeof f == 'function';
-	}
-	function isObject(f) {
-		return typeof f == 'object';
-	}
-	function defer(callback) {
-		if (typeof setImmediate != 'undefined')
-			setImmediate(callback);
-		else if (typeof process != 'undefined' && process['nextTick'])
-			process['nextTick'](callback);
-		else
-			setTimeout(callback, 0);
-	}
-
-	return function pinkySwear(extend) {
-		var state;           // undefined/null = pending, true = fulfilled, false = rejected
-		var values = [];     // an array of values as arguments for the then() handlers
-		var deferred = [];   // functions to call when set() is invoked
-
-		var set = function(newState, newValues) {
-			if (state == null && newState != null) {
-				state = newState;
-				values = newValues;
-				if (deferred.length)
-					defer(function() {
-						for (var i = 0; i < deferred.length; i++)
-							deferred[i]();
-					});
-			}
-			return state;
-		};
-
-		set['then'] = function (onFulfilled, onRejected) {
-			var promise2 = pinkySwear(extend);
-			var callCallbacks = function() {
-	    		try {
-	    			var f = (state ? onFulfilled : onRejected);
-	    			if (isFunction(f)) {
-		   				function resolve(x) {
-						    var then, cbCalled = 0;
-		   					try {
-				   				if (x && (isObject(x) || isFunction(x)) && isFunction(then = x['then'])) {
-										if (x === promise2)
-											throw new TypeError();
-										then['call'](x,
-											function() { if (!cbCalled++) resolve.apply(undef,arguments); } ,
-											function(value){ if (!cbCalled++) promise2(false,[value]);});
-				   				}
-				   				else
-				   					promise2(true, arguments);
-		   					}
-		   					catch(e) {
-		   						if (!cbCalled++)
-		   							promise2(false, [e]);
-		   					}
-		   				}
-		   				resolve(f.apply(undef, values || []));
-		   			}
-		   			else
-		   				promise2(state, values);
-				}
-				catch (e) {
-					promise2(false, [e]);
-				}
-			};
-			if (state != null)
-				defer(callCallbacks);
-			else
-				deferred.push(callCallbacks);
-			return promise2;
-		};
-        if(extend){
-            set = extend(set);
-        }
-		return set;
-	};
-}));
-
-
-}).call(this,require('_process'),require("timers").setImmediate)
-},{"_process":34,"timers":35}],34:[function(require,module,exports){
+},{}],34:[function(require,module,exports){
 // shim for using process in browser
 var process = module.exports = {};
 
