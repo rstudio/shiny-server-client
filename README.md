@@ -1,7 +1,5 @@
 # Shiny Server unified client
 
-[![Build Status](https://travis-ci.org/rstudio/shiny-server-client.svg?branch=master)](https://travis-ci.org/rstudio/shiny-server-client)
-
 This npm library provides unified client code for Shiny Server, Shiny Server Pro, and RStudio Connect. Previously, each server product had its own version of this code with slight differences. This repo provides the superset of functionality needed by the different products, and runtime options determine what features to enable.
 
 ### How to use
